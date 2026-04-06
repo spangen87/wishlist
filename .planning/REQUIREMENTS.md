@@ -112,9 +112,9 @@
 | VIEW-06 | Phase 4 | Pending |
 | VIEW-07 | Phase 4 | Pending |
 | SYNC-01 | Phase 1 | Pending |
-| PWA-01 | Phase 6 | Pending |
-| PWA-02 | Phase 6 | Pending |
-| UI-01 | Phase 6 | Pending |
+| PWA-01 | Phase 5 | Pending |
+| PWA-02 | Phase 5 | Pending |
+| UI-01 | Phase 5 | Pending |
 | UI-02 | Phase 3 | Pending |
 
 **Coverage:**
@@ -124,4 +124,4 @@
 
 ---
 *Requirements defined: 2026-04-06*
-*Last updated: 2026-04-06 after initial definition*
+*Last updated: 2026-04-06 — phase assignments finalized (PWA-01, PWA-02, UI-01 moved from Phase 6 to Phase 5)*
