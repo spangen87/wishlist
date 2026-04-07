@@ -30,7 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Firestore security rules deny a child UID read access to `purchaseStatus` — verified via emulator test
   4. Real-time Firestore listeners work in a client component and reflect document changes without a page refresh
   5. `lib/firebase/client.ts` and `lib/firebase/admin.ts` exist as separate modules; admin file is guarded with `server-only`
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Next.js scaffold, Firebase emulator config, Firestore security rules, TypeScript schema types
+- [ ] 01-02-PLAN.md — Firebase SDK split: client.ts singleton and admin.ts with server-only guard
+- [ ] 01-03-PLAN.md — Security rule unit tests (emulator) and real-time listener PoC at /test route
 
 ### Phase 2: Authentication
 **Goal**: A parent can create a child account and the child can log in with just a username and password; viewers can register their own accounts; sessions persist across refreshes
@@ -93,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/3 | Not started | - |
 | 2. Authentication | 0/TBD | Not started | - |
 | 3. Child Wishlist | 0/TBD | Not started | - |
 | 4. Viewer Flow | 0/TBD | Not started | - |
