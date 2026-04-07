@@ -47,8 +47,12 @@ Plans:
   3. Viewer can register at /register with email + password and receives role claim "viewer"
   4. Logged-in user remains authenticated after a hard browser refresh
   5. User can log out and is redirected to the login page
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Auth Route Handlers (register-child, set-viewer-claim), AuthProvider context, emulator connection
+- [ ] 02-02-PLAN.md — Login page (child username+password) and viewer registration page
+- [ ] 02-03-PLAN.md — proxy.ts route protection, dashboard stub with logout, end-to-end checkpoint
 
 ### Phase 3: Child Wishlist
 **Goal**: A logged-in child can build and manage their wishlist — adding items with full details, reordering via drag-and-drop, editing and deleting — and their view never reveals purchase status
@@ -98,8 +102,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
-| 2. Authentication | 0/TBD | Not started | - |
+| 1. Foundation | 3/3 | Complete | 2026-04-07 |
+| 2. Authentication | 0/3 | Not started | - |
 | 3. Child Wishlist | 0/TBD | Not started | - |
 | 4. Viewer Flow | 0/TBD | Not started | - |
 | 5. PWA + Polish | 0/TBD | Not started | - |
