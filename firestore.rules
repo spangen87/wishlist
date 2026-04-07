@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(wishlistId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.childUid == request.auth.uid;
+    }
+
+    function isViewer(wishlistId) {
+      return isAuthenticated() &&
+             request.auth.uid in get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.viewerUids;
+    }
+
+    // Root wishlist document — child (owner) can read/write their own
+    match /wishlists/{wishlistId} {
+      allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId));
+      allow create: if isAuthenticated();
+      allow update, delete: if isOwner(wishlistId);
+
+      // Items subcollection — child-readable AND child-writable (D-02)
+      // Viewers can also read items (to show the wishlist to them)
+      match /items/{itemId} {
+        allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId));
+        allow write: if isOwner(wishlistId);
+      }
+
+      // Purchase status subcollection — VIEWER-ONLY, child CANNOT read (D-03)
+      // This is the irreversible privacy boundary. Child UID is NOT in viewerUids.
+      // Do NOT add any rule that allows childUid to read this subcollection.
+      match /purchaseStatus/{itemId} {
+        allow read, write: if isViewer(wishlistId);
+      }
+    }
+
+    // Username → UID mapping (D-04)
+    // Anyone authenticated can read (needed for login lookup)
+    // Only the Admin SDK (server-only) writes these — no client write rule needed
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Admin SDK only
+    }
+
+    // User profiles (D-04)
+    // Users can read/write their own profile; others cannot
+    match /users/{uid} {
+      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Invite tokens (D-04)
+    // Share link redemption via API Route + Admin SDK only — client SDK never reads invites
+    match /invites/{token} {
+      allow read, write: if false; // Admin SDK only, client never touches this
+    }
+  }
+}
