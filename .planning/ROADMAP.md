@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Next.js scaffold, Firebase emulator config, Firestore security rules, TypeScript schema types
-- [ ] 01-02-PLAN.md — Firebase SDK split: client.ts singleton and admin.ts with server-only guard
-- [ ] 01-03-PLAN.md — Security rule unit tests (emulator) and real-time listener PoC at /test route
+- [x] 01-01-PLAN.md — Next.js scaffold, Firebase emulator config, Firestore security rules, TypeScript schema types
+- [x] 01-02-PLAN.md — Firebase SDK split: client.ts singleton and admin.ts with server-only guard
+- [x] 01-03-PLAN.md — Security rule unit tests (emulator) and real-time listener PoC at /test route
 
 ### Phase 2: Authentication
 **Goal**: A parent can create a child account and the child can log in with just a username and password; viewers can register their own accounts; sessions persist across refreshes
