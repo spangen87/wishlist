@@ -12,8 +12,8 @@ Build a family wishlist PWA where children own their wishlists and parents/relat
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Next.js scaffolding, Firebase project, Firestore schema, security rules, dual SDK split, and real-time architecture
-- [ ] **Phase 2: Authentication** - Child account creation via synthetic email, viewer registration, session persistence, login/logout
+- [x] **Phase 1: Foundation** - Next.js scaffolding, Firebase project, Firestore schema, security rules, dual SDK split, and real-time architecture
+- [x] **Phase 2: Authentication** - Child account creation via synthetic email, viewer registration, session persistence, login/logout (completed 2026-04-08)
 - [ ] **Phase 3: Child Wishlist** - Item CRUD with all fields, drag-and-drop reordering via fractional indexing, child view that hides purchase status
 - [ ] **Phase 4: Viewer Flow** - Share link generation and redemption, mark-as-purchased, viewer notes, activity log, multi-child dashboard
 - [ ] **Phase 5: PWA + Polish** - Service worker, installable manifest, pastel UI design system, responsive layout, security hardening verification
@@ -47,12 +47,12 @@ Plans:
   3. Viewer can register at /register with email + password and receives role claim "viewer"
   4. Logged-in user remains authenticated after a hard browser refresh
   5. User can log out and is redirected to the login page
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 02-01-PLAN.md — Auth Route Handlers (register-child, set-viewer-claim), AuthProvider context, emulator connection
-- [ ] 02-02-PLAN.md — Login page (child username+password) and viewer registration page
-- [ ] 02-03-PLAN.md — proxy.ts route protection, dashboard stub with logout, end-to-end checkpoint
+- [x] 02-01-PLAN.md — Auth Route Handlers (register-child, set-viewer-claim), AuthProvider context, emulator connection
+- [x] 02-02-PLAN.md — Login page (child username+password) and viewer registration page
+- [x] 02-03-PLAN.md — proxy.ts route protection, dashboard stub with logout, end-to-end checkpoint
 
 ### Phase 3: Child Wishlist
 **Goal**: A logged-in child can build and manage their wishlist — adding items with full details, reordering via drag-and-drop, editing and deleting — and their view never reveals purchase status
@@ -103,7 +103,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-04-07 |
-| 2. Authentication | 0/3 | Not started | - |
+| 2. Authentication | 3/3 | Complete   | 2026-04-08 |
 | 3. Child Wishlist | 0/TBD | Not started | - |
 | 4. Viewer Flow | 0/TBD | Not started | - |
 | 5. PWA + Polish | 0/TBD | Not started | - |

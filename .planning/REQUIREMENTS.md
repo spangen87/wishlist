@@ -10,8 +10,8 @@
 - [ ] **AUTH-01**: Förälder kan registrera ett barnkonto med barnets användarnamn (förälderns e-post används internt som syntetisk identifierare)
 - [ ] **AUTH-02**: Barn kan logga in med användarnamn + lösenord (ingen e-post behövs)
 - [ ] **AUTH-03**: Betraktare (föräldrar/släkt) kan skapa eget konto med e-post + lösenord
-- [ ] **AUTH-04**: Inloggad session bevaras vid siduppdatering och byte av enhet
-- [ ] **AUTH-05**: Förälder kan logga ut
+- [x] **AUTH-04**: Inloggad session bevaras vid siduppdatering och byte av enhet
+- [x] **AUTH-05**: Förälder kan logga ut
 
 ### Önskelista — barnets vy
 
@@ -91,8 +91,8 @@
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Complete |
+| AUTH-05 | Phase 2 | Complete |
 | WISH-01 | Phase 3 | Pending |
 | WISH-02 | Phase 3 | Pending |
 | WISH-03 | Phase 3 | Pending |
