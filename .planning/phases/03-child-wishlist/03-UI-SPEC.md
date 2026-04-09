@@ -56,13 +56,13 @@ Exceptions:
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 16px (`text-base`) | 400 (regular) | 1.5 | Item note text, form field values, descriptive copy |
-| Label | 14px (`text-sm`) | 500 (medium) | 1.4 | Field labels, price display, URL display, card metadata |
+| Label | 14px (`text-sm`) | 400 (regular) | 1.4 | Field labels, price display, URL display, card metadata |
 | Heading | 20px (`text-xl`) | 600 (semibold) | 1.2 | Item title on card, page heading ("Din önskelista") |
-| Display | 28px (`text-3xl`) | 700 (bold) | 1.2 | Empty state heading only |
+| Display | 28px (`text-3xl`) | 600 (semibold) | 1.2 | Empty state heading only |
 
-**Weights used:** regular (400) + semibold (600). Medium (500) used only for label role — this is a strict two-weight system in practice; medium is a label-only exception to avoid visual noise.
+**Weights used:** 400 (regular) for Body and Label; 600 (semibold) for Heading and Display. This is a strict two-weight system — no other weights are permitted in this phase.
 
-**Source:** Existing pages use `text-2xl font-bold` and `text-sm font-medium` — Phase 3 formalizes and extends this scale with a 4-step system. Display size added for empty state emotional impact (D-14).
+**Source:** Existing pages use `text-2xl font-bold` and `text-sm font-medium` — Phase 3 formalizes and extends this scale with a 4-step system. Display size added for empty state emotional impact (D-14). Weight consolidated from prior 4-weight draft to comply with 2-weight maximum.
 
 ---
 
@@ -103,7 +103,7 @@ These are the UI primitives Phase 3 must implement. No library — built from Ta
 - Wide card layout — all fields visible (D-05)
 - Thumbnail image (64×64px, `object-cover`, `rounded-md`) when `imageUrl` set; placeholder rectangle (same size, `bg-[#E5D5CC]`) when absent (D-06)
 - Title at Heading scale (20px semibold)
-- Price at Label scale (14px medium) prefixed with "~" when set
+- Price at Label scale (14px regular) prefixed with "~" when set
 - Product URL at Label scale, truncated to one line, rendered as `<a>` with external link behavior
 - Note at Body scale (16px regular), max 3 lines with line clamp
 - Drag handle: always-visible 24×44px grip area on left edge of card; grip icon is a 3×2 dot grid SVG (⠿ equivalent), `text-gray-400` (D-09)
@@ -116,27 +116,28 @@ These are the UI primitives Phase 3 must implement. No library — built from Ta
 - Product URL input: type="url", full width, Label scale
 - Image URL input: type="url", full width, Label scale
 - Note textarea: Body scale, 3 rows
-- Save button: accent background, white text, "Spara" label (44px min height)
-- Cancel button: ghost (transparent background, muted text), "Avbryt" label
+- Save button: accent background, white text, "Spara önskemål" label (44px min height)
+- Cancel button: ghost (transparent background, muted text), "Avbryt redigering" label
 - Delete button: destructive, text-only, "Ta bort önskemål" label — appears below Save/Cancel row (D-08)
 
 ### InlineDeleteConfirmation
-- Replaces Delete button text with "Är du säker? [Ja, ta bort] [Avbryt]" inline (D-08)
+- Replaces Delete button text with "Är du säker?" followed by actions "Ja, ta bort" and "Nej, behåll" inline (D-08)
 - No modal — the confirmation appears in place of the Delete button
 - "Ja, ta bort" uses destructive color (`text-red-600`)
+- "Nej, behåll" uses ghost style (muted text, no background)
 
 ### AddItemForm (inline expanded)
 - Triggered by "+ Lägg till önskemål" button (D-03)
 - Same field set as edit mode (D-04)
 - Appears below the list when list has items, or replaces empty state CTA when list is empty
-- Save button label: "Lägg till" (accent background)
-- Cancel button: "Avbryt" (ghost)
+- Save button label: "Lägg till önskemål" (accent background)
+- Cancel button: "Avbryt tillägg" (ghost)
 - Validation: title required; show inline error "Titel krävs" in `text-red-600 text-sm` below the title input on submit attempt
 
 ### EmptyState
 - Centered vertically in the page (D-14)
 - Illustration: ⭐ emoji at 64px font size (no external image dependency)
-- Heading (Display scale, 28px bold): "Din lista är tom"
+- Heading (Display scale, 28px semibold): "Din lista är tom"
 - Body (Body scale, 16px regular): "Vad önskar du dig? Lägg till ditt första önskemål!"
 - CTA button: accent background, "Lägg till önskemål", opens AddItemForm
 
@@ -180,15 +181,18 @@ All copy is in Swedish (consistent with CONTEXT.md D-14 empty state example and 
 |---------|------|
 | Page heading | "Din önskelista" |
 | Primary CTA (add) | "Lägg till önskemål" |
-| Add form save button | "Lägg till" |
-| Edit form save button | "Spara" |
-| Cancel button | "Avbryt" |
+| Add form save button | "Lägg till önskemål" |
+| Add form cancel button | "Avbryt tillägg" |
+| Edit form save button | "Spara önskemål" |
+| Edit form cancel button | "Avbryt redigering" |
 | Empty state heading | "Din lista är tom" |
 | Empty state body | "Vad önskar du dig? Lägg till ditt första önskemål!" |
 | Empty state CTA | "Lägg till önskemål" |
 | Edit trigger | "Redigera" |
 | Delete trigger | "Ta bort önskemål" |
-| Delete confirmation | "Är du säker?" with actions "Ja, ta bort" (destructive) and "Avbryt" |
+| Delete confirmation prompt | "Är du säker?" |
+| Delete confirmation confirm | "Ja, ta bort" (destructive) |
+| Delete confirmation cancel | "Nej, behåll" (ghost) |
 | Field label: Title | "Titel" |
 | Field label: Price | "Ungefärligt pris (kr)" |
 | Field label: Product URL | "Länk till produkt" |
@@ -199,7 +203,7 @@ All copy is in Swedish (consistent with CONTEXT.md D-14 empty state example and 
 | Loading state | (no text — skeleton animation only) |
 | Price display prefix | "~" (e.g. "~250 kr") |
 
-**Source:** D-14 provided the empty state Swedish copy template. All other copy derived from Swedish app context (REQUIREMENTS.md is written in Swedish throughout). Claude's discretion for exact phrasing.
+**Source:** D-14 provided the empty state Swedish copy template. All other copy derived from Swedish app context (REQUIREMENTS.md is written in Swedish throughout). Cancel labels made context-specific per copywriting contract rules (no standalone "Avbryt" permitted). Save label made action-specific ("Spara önskemål" not "Spara").
 
 ---
 
