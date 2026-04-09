@@ -43,6 +43,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
 
+  // Block self-invite: child cannot become a viewer of their own wishlist
+  const childUid: string = wishlistSnap.data()!.childUid;
+  if (childUid === uid) {
+    return NextResponse.json({ error: 'Du kan inte gå med i din egen önskelista' }, { status: 409 });
+  }
+
   const existingViewerUids: string[] = wishlistSnap.data()!.viewerUids ?? [];
   if (existingViewerUids.includes(uid)) {
     // Already a viewer — return wishlistId so client can redirect

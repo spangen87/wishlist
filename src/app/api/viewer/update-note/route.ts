@@ -1,7 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -43,12 +43,14 @@ export async function POST(request: NextRequest) {
 
   const batch = adminDb.batch();
 
-  // Write the viewer's note into the viewerNotes map — uses merge to avoid overwriting purchasedBy
+  // Write the viewer's note into the viewerNotes map.
+  // Use FieldPath for the nested key — batch.set() with merge:true treats dotted string keys
+  // as literal field names, not nested paths. FieldPath ensures correct nested write.
   batch.set(statusRef, {
     itemId,
     viewerUids,
-    [`viewerNotes.${uid}`]: note,
-  }, { merge: true });
+    viewerNotes: { [uid]: note },
+  }, { mergeFields: ['itemId', 'viewerUids', new FieldPath('viewerNotes', uid)] });
 
   // Only log if note is non-empty (don't log clearing a note)
   if (note.trim().length > 0) {

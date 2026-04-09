@@ -123,7 +123,12 @@ export default function ViewerWishlistPage({
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-[#171717]">Önskelista</h1>
+          <Link
+            href="/dashboard"
+            className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
+          >
+            ← Mina önskelistor
+          </Link>
           <Link
             href={`/viewer/${wishlistId}/activity`}
             className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"

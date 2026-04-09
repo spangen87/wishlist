@@ -22,8 +22,14 @@ service cloud.firestore {
     // Root wishlist document — child (owner) can read/write their own
     // request.auth.uid == wishlistId covers first-login reads where the doc doesn't exist yet
     // (wishlist ID is deterministically the child's UID, so this is safe)
+    // Note: use resource.data directly (not isOwner/isViewer helpers) so collection queries work.
+    // isOwner/isViewer call get() on the same document, which Firestore rejects for queries.
     match /wishlists/{wishlistId} {
-      allow read: if isAuthenticated() && (request.auth.uid == wishlistId || isOwner(wishlistId) || isViewer(wishlistId));
+      allow read: if isAuthenticated() && (
+        request.auth.uid == wishlistId ||
+        request.auth.uid == resource.data.childUid ||
+        request.auth.uid in resource.data.viewerUids
+      );
       allow create: if isAuthenticated();
       allow update, delete: if isOwner(wishlistId);
 
@@ -58,9 +64,11 @@ service cloud.firestore {
     }
 
     // User profiles (D-04)
-    // Users can read/write their own profile; others cannot
+    // Any authenticated user can read profiles (needed for viewers to resolve child display names).
+    // Only the owner can write their own profile.
     match /users/{uid} {
-      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == uid;
     }
 
     // Invite tokens (D-04)
