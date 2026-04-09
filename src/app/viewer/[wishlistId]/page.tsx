@@ -90,6 +90,20 @@ export default function ViewerWishlistPage({
     }
   }
 
+  async function handleUpdateNote(itemId: string, itemTitle: string, note: string) {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+    const res = await fetch('/api/viewer/update-note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, wishlistId, itemId, itemTitle, note }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? 'API error');
+    }
+  }
+
   if (loading || dataLoading) return <LoadingSkeleton />;
   if (!user) return null;
 
@@ -133,10 +147,24 @@ export default function ViewerWishlistPage({
                 status={statuses[item.id]}
                 currentUid={user.uid}
                 onTogglePurchased={handleTogglePurchased}
+                onUpdateNote={handleUpdateNote}
                 purchaserName={
                   statuses[item.id]?.purchasedBy
                     ? displayNames.get(statuses[item.id].purchasedBy!) ?? '...'
                     : undefined
+                }
+                otherViewerNotes={
+                  (() => {
+                    const statusDoc = statuses[item.id];
+                    if (!statusDoc?.viewerNotes) return [];
+                    return Object.entries(statusDoc.viewerNotes)
+                      .filter(([uid]) => uid !== user.uid)
+                      .map(([uid, note]) => ({
+                        uid,
+                        displayName: displayNames.get(uid) ?? uid,
+                        note,
+                      }));
+                  })()
                 }
               />
             ))}
