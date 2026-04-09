@@ -9,17 +9,21 @@ service cloud.firestore {
 
     function isOwner(wishlistId) {
       return isAuthenticated() &&
+             exists(/databases/$(database)/documents/wishlists/$(wishlistId)) &&
              get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.childUid == request.auth.uid;
     }
 
     function isViewer(wishlistId) {
       return isAuthenticated() &&
+             exists(/databases/$(database)/documents/wishlists/$(wishlistId)) &&
              request.auth.uid in get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.viewerUids;
     }
 
     // Root wishlist document — child (owner) can read/write their own
+    // request.auth.uid == wishlistId covers first-login reads where the doc doesn't exist yet
+    // (wishlist ID is deterministically the child's UID, so this is safe)
     match /wishlists/{wishlistId} {
-      allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId));
+      allow read: if isAuthenticated() && (request.auth.uid == wishlistId || isOwner(wishlistId) || isViewer(wishlistId));
       allow create: if isAuthenticated();
       allow update, delete: if isOwner(wishlistId);
 
