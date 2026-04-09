@@ -102,8 +102,12 @@ Plans:
   3. The UI uses a consistent pastel color palette with rounded cards and soft shadows — visually child-friendly and gender-neutral
   4. After a new deployment, a user on the old version sees an update prompt or is automatically refreshed within 30 seconds (no stale JS bundles served silently)
   5. Firestore rules review confirms child UID cannot access `purchaseStatus` or `activity` subcollections in production (emulator re-run against final rules)
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — CSS accent token swap (#F9A87A), Swedish metadata in layout.tsx, OfflineBanner + UpdateToast components
+- [ ] 05-02-PLAN.md — @ducanh2912/next-pwa install, webpack mode, next.config.ts, manifest.ts, icon generation script
+- [ ] 05-03-PLAN.md — activityLog security rule tests + full emulator re-run (13 tests)
 
 ## Progress
 
@@ -116,4 +120,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Authentication | 3/3 | Complete   | 2026-04-08 |
 | 3. Child Wishlist | 0/3 | Not started | - |
 | 4. Viewer Flow | 0/5 | Not started | - |
-| 5. PWA + Polish | 0/TBD | Not started | - |
+| 5. PWA + Polish | 0/3 | Not started | - |
