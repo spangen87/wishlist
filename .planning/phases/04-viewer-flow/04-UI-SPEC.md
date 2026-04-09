@@ -57,6 +57,8 @@ Exceptions: Touch targets minimum 44px height for all interactive controls (esta
 
 Source: Extracted from `WishItemCard.tsx` (`text-xl font-semibold` = 20px/600, `text-sm` = 14px/400, `text-base` = 16px/400) and `EmptyState.tsx` (`text-3xl` = 28px/600 for empty state heading, treated as display).
 
+Note: Activity log timestamps use the Label/Caption role (14px/400 muted) — timestamps are captions and belong in that role. Maximum 4 font sizes maintained.
+
 ---
 
 ## Color
@@ -152,7 +154,7 @@ Accent is NOT used for: navigation links, note text links, secondary actions, re
 ### Activity Log (D-16, D-17)
 
 - Route: `/viewer/[wishlistId]/activity`, linked from viewer page header
-- Each entry: row with viewer username (14px/600), action text (14px/400), item title (14px/400 italic), timestamp (12px/400 muted)
+- Each entry: row with viewer username (14px/600), action text (14px/400), item title (14px/400 italic), timestamp (14px/400 muted — Label/Caption role)
 - Ordered newest-first
 - Pagination: show 50 entries per page; "Visa fler" text button at bottom if more exist (no infinite scroll)
 - Empty state: "Inga händelser ännu" centered at 16px/400 muted
@@ -183,7 +185,7 @@ All copy is in Swedish (matching established pattern from Phase 3).
 | Dashboard empty state body | "Du är inte tillagd på någon önskelista ännu. Be ett barn att dela sin länk med dig." |
 | Viewer wishlist error state | "Kunde inte ladda önskelistan. Försök igen om en stund." |
 | Mark purchased CTA | "Markera som köpt" |
-| Unmark purchased CTA | "Avmarkera" |
+| Unmark purchased CTA | "Avmarkera köpt" |
 | Purchased by self label | "Markerad som köpt av dig" |
 | Purchased by other label | "Köpt av [namn]" |
 | Leave note CTA | "Lämna en anteckning" |
@@ -212,6 +214,7 @@ All copy is in Swedish (matching established pattern from Phase 3).
 - Invite page auth forms: same `aria-required` and `role="alert"` patterns as Phase 2 auth forms
 - Activity log timestamps: use `<time datetime="{ISO}">` element
 - Settings regenerate confirmation: inline `role="alert"` so screen readers announce the confirmation step
+- Gear/settings icon button: `aria-label="Inställningar för önskelistan"` on the icon button element
 
 ---
 
