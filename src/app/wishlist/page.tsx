@@ -22,7 +22,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
 export default function WishlistPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const [items, setItems] = useState<WishItemDoc[]>([]);
   const [wishlistId, setWishlistId] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -46,6 +46,13 @@ export default function WishlistPage() {
       router.push('/login');
     }
   }, [loading, user, router]);
+
+  // D-07: Viewer role users accessing /wishlist are redirected to their dashboard
+  useEffect(() => {
+    if (!loading && user && role === 'viewer') {
+      router.push('/dashboard');
+    }
+  }, [loading, user, role, router]);
 
   // Bootstrap wishlist and subscribe to items
   useEffect(() => {
