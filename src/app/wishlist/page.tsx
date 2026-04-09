@@ -2,12 +2,23 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { getOrCreateWishlist, subscribeToItems } from '@/lib/firebase/wishlist';
+import { getOrCreateWishlist, subscribeToItems, updateItemPosition } from '@/lib/firebase/wishlist';
 import type { WishItemDoc } from '@/types/firestore';
 import { WishItemCard } from '@/components/wishlist/WishItemCard';
 import { AddItemForm } from '@/components/wishlist/AddItemForm';
 import { EmptyState } from '@/components/wishlist/EmptyState';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  closestCenter,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 export default function WishlistPage() {
   const router = useRouter();
@@ -16,7 +27,18 @@ export default function WishlistPage() {
   const [wishlistId, setWishlistId] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [activeItem, setActiveItem] = useState<WishItemDoc | null>(null);
   const wishlistIdRef = useRef<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
+      },
+    })
+  );
 
   // Auth guard — same pattern as dashboard
   useEffect(() => {
@@ -44,6 +66,32 @@ export default function WishlistPage() {
     };
   }, [loading, user]);
 
+  function handleDragStart(event: { active: { id: string | number } }) {
+    const found = items.find((i) => i.id === event.active.id);
+    setActiveItem(found ?? null);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveItem(null);
+    if (!over || active.id === over.id || !wishlistId) return;
+
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Compute adjacent positions for the target slot.
+    // Use the sorted array excluding the dragged item to find neighbors.
+    const remaining = items.filter((i) => i.id !== active.id);
+    const insertAt = newIndex > oldIndex ? newIndex : newIndex;
+    const prevPos = remaining[insertAt - 1]?.position ?? null;
+    const nextPos = remaining[insertAt]?.position ?? null;
+
+    // Pitfall 3 guard: skip if adjacent positions are equal (handled inside updateItemPosition)
+    await updateItemPosition(wishlistId, active.id as string, prevPos, nextPos);
+    // Do NOT update local `items` state here — onSnapshot will reflect the new order
+  }
+
   if (loading || dataLoading) return <LoadingSkeleton />;
   if (!user) return null;
 
@@ -58,16 +106,34 @@ export default function WishlistPage() {
           <EmptyState onAdd={() => setShowAddForm(true)} />
         ) : (
           <>
-            <ul role="list" className="flex flex-col gap-6">
-              {items.map((item) => (
-                <WishItemCard
-                  key={item.id}
-                  item={item}
-                  wishlistId={wishlistId!}
-                  onEditStart={() => {}}
-                />
-              ))}
-            </ul>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <ul role="list" className="flex flex-col gap-6">
+                  {items.map((item) => (
+                    <WishItemCard
+                      key={item.id}
+                      item={item}
+                      wishlistId={wishlistId!}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+              <DragOverlay>
+                {activeItem ? (
+                  <div className="opacity-90 rotate-1 shadow-xl rounded-2xl">
+                    <WishItemCard
+                      item={activeItem}
+                      wishlistId={wishlistId!}
+                    />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
 
             {showAddForm ? (
               <div className="mt-6">
