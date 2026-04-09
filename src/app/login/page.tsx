@@ -32,9 +32,10 @@ export default function LoginPage() {
 
       // Derive synthetic email — never stored in the usernames doc
       const syntheticEmail = `${usernameLower}@wishlist.internal`;
-      await signInWithEmailAndPassword(auth, syntheticEmail, password);
-
-      router.push('/dashboard');
+      const result = await signInWithEmailAndPassword(auth, syntheticEmail, password);
+      const idTokenResult = await result.user.getIdTokenResult();
+      const role = idTokenResult.claims['role'] as string | undefined;
+      router.push(role === 'child' ? '/wishlist' : '/dashboard');
     } catch {
       // Firebase auth errors and Firestore errors both surface here
       setError('Username or password incorrect');

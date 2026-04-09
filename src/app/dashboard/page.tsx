@@ -16,6 +16,13 @@ export default function DashboardPage() {
     }
   }, [loading, user, router]);
 
+  // Safety net — child-role users belong at /wishlist, not /dashboard
+  useEffect(() => {
+    if (!loading && user && role === 'child') {
+      router.push('/wishlist');
+    }
+  }, [loading, user, role, router]);
+
   // Prevent auth flash: show nothing while Firebase rehydrates from IndexedDB
   if (loading) {
     return (
