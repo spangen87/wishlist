@@ -64,8 +64,12 @@ Plans:
   3. Child can drag items to a new position; the order persists after a page refresh and required exactly one Firestore write per reorder
   4. Child's wishlist view does not show purchased status, viewer notes, or buyer names — even when inspecting the raw Firestore response in browser DevTools (because purchase fields are in a separate subcollection the child cannot read)
   5. Layout is responsive and usable on a 375px mobile screen and a 768px tablet
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — npm package install, Firestore helpers (wishlist.ts), role-aware login redirect
+- [ ] 03-02-PLAN.md — WishlistPage, WishItemCard (read mode), AddItemForm, EmptyState, LoadingSkeleton, color tokens
+- [ ] 03-03-PLAN.md — WishItemCard inline edit + delete confirmation, DndContext/SortableContext drag-and-drop
 
 ### Phase 4: Viewer Flow
 **Goal**: A viewer with a share link can join a child's wishlist, coordinate purchases with other viewers, and review an activity log — all without the child seeing any of it
@@ -104,6 +108,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-04-07 |
 | 2. Authentication | 3/3 | Complete   | 2026-04-08 |
-| 3. Child Wishlist | 0/TBD | Not started | - |
+| 3. Child Wishlist | 0/3 | Not started | - |
 | 4. Viewer Flow | 0/TBD | Not started | - |
 | 5. PWA + Polish | 0/TBD | Not started | - |
