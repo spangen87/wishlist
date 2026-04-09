@@ -27,7 +27,18 @@ export interface PurchaseStatusDoc {
   viewerUids: string[];       // Copied from parent wishlist for rule evaluation
   purchasedBy?: string;       // UID of viewer who marked as purchased
   purchasedAt?: Timestamp;
-  viewerNote?: string;        // Viewer note (not visible to child)
+  viewerNotes?: Record<string, string>; // Map of viewerUid → note text (D-12, D-15)
+}
+
+// wishlists/{wishlistId}/activityLog/{entryId}
+// PRIVACY BOUNDARY: Written server-side only via API routes (Admin SDK batch)
+// Viewers can read; child cannot read (enforced in firestore.rules)
+export interface ActivityLogDoc {
+  viewerUid: string;                                          // UID of the viewer who acted
+  action: 'marked_purchased' | 'unmarked_purchased' | 'added_note';
+  itemId: string;
+  itemTitle: string;
+  timestamp: Timestamp;
 }
 
 // users/{uid}
