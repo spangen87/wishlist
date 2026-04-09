@@ -67,9 +67,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — npm package install, Firestore helpers (wishlist.ts), role-aware login redirect
-- [ ] 03-02-PLAN.md — WishlistPage, WishItemCard (read mode), AddItemForm, EmptyState, LoadingSkeleton, color tokens
-- [ ] 03-03-PLAN.md — WishItemCard inline edit + delete confirmation, DndContext/SortableContext drag-and-drop
+- [x] 03-01-PLAN.md — npm package install, Firestore helpers (wishlist.ts), role-aware login redirect
+- [x] 03-02-PLAN.md — WishlistPage, WishItemCard (read mode), AddItemForm, EmptyState, LoadingSkeleton, color tokens
+- [x] 03-03-PLAN.md — WishItemCard inline edit + delete confirmation, DndContext/SortableContext drag-and-drop
 
 ### Phase 4: Viewer Flow
 **Goal**: A viewer with a share link can join a child's wishlist, coordinate purchases with other viewers, and review an activity log — all without the child seeing any of it
@@ -83,8 +83,14 @@ Plans:
   5. Viewer can leave a note on any item visible to other viewers but not to the child
   6. Activity log shows each viewer action (marked purchased, added note, etc.) with username and timestamp
   7. A viewer account can access multiple children's wishlists from a single dashboard
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 5 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Types update (viewerNotes), activityLog Firestore rule, invite API routes (create/current/regenerate), viewer.ts helpers
+- [ ] 04-02-PLAN.md — /invite/[token] join page + POST /api/invite/redeem token redemption
+- [ ] 04-03-PLAN.md — /viewer/[wishlistId] page, ViewerWishItemCard, PurchasedBadge, mark-purchased API
+- [ ] 04-04-PLAN.md — ViewerNoteField, OtherViewerNotes, update-note API, activity log page + ActivityLogEntry
+- [ ] 04-05-PLAN.md — Viewer dashboard (WishlistDashboardCard), settings page (ShareLinkPanel), role redirect guards
 
 ### Phase 5: PWA + Polish
 **Goal**: The app is installable on a phone home screen, works offline for cached data, renders with the pastel family-friendly visual design, and passes a final security hardening review
@@ -109,5 +115,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation | 3/3 | Complete | 2026-04-07 |
 | 2. Authentication | 3/3 | Complete   | 2026-04-08 |
 | 3. Child Wishlist | 0/3 | Not started | - |
-| 4. Viewer Flow | 0/TBD | Not started | - |
+| 4. Viewer Flow | 0/5 | Not started | - |
 | 5. PWA + Polish | 0/TBD | Not started | - |
