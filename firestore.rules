@@ -40,6 +40,13 @@ service cloud.firestore {
       match /purchaseStatus/{itemId} {
         allow read, write: if isViewer(wishlistId);
       }
+
+      // Activity log subcollection — VIEWER READ ONLY, written via Admin SDK only (D-18)
+      // Child CANNOT read. Client writes are forbidden (Admin SDK bypasses rules).
+      match /activityLog/{entryId} {
+        allow read: if isViewer(wishlistId);
+        allow write: if false;
+      }
     }
 
     // Username → UID mapping (D-04)
