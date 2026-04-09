@@ -39,10 +39,10 @@ service cloud.firestore {
     }
 
     // Username → UID mapping (D-04)
-    // Anyone authenticated can read (needed for login lookup)
+    // Public read — needed for unauthenticated login lookup (only stores uid, not sensitive)
     // Only the Admin SDK (server-only) writes these — no client write rule needed
     match /usernames/{username} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if false; // Admin SDK only
     }
 
