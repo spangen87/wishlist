@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
+import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
+import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 
 interface ViewerWishItemCardProps {
@@ -10,7 +12,9 @@ interface ViewerWishItemCardProps {
   currentUid: string;
   // Callbacks — parent fetches idToken and calls API
   onTogglePurchased: (itemId: string, itemTitle: string, purchased: boolean) => Promise<void>;
+  onUpdateNote: (itemId: string, itemTitle: string, note: string) => Promise<void>;
   purchaserName?: string; // resolved display name for status.purchasedBy uid (pre-fetched by parent)
+  otherViewerNotes: Array<{ uid: string; displayName: string; note: string }>;
 }
 
 export function ViewerWishItemCard({
@@ -18,7 +22,9 @@ export function ViewerWishItemCard({
   status,
   currentUid,
   onTogglePurchased,
+  onUpdateNote,
   purchaserName,
+  otherViewerNotes,
 }: ViewerWishItemCardProps) {
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -107,6 +113,17 @@ export function ViewerWishItemCard({
         {toggleError && (
           <p role="alert" className="text-[#DC2626] text-sm mt-1">{toggleError}</p>
         )}
+
+        {/* Viewer note section (D-13, D-14) */}
+        <div className="mt-3">
+          <ViewerNoteField
+            itemId={item.id}
+            itemTitle={item.title}
+            currentNote={status?.viewerNotes?.[currentUid] ?? ''}
+            onSave={(note) => onUpdateNote(item.id, item.title, note)}
+          />
+          <OtherViewerNotes notes={otherViewerNotes} />
+        </div>
       </div>
 
       {/* Right column: thumbnail */}
