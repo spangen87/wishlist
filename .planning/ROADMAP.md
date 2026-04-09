@@ -86,11 +86,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Types update (viewerNotes), activityLog Firestore rule, invite API routes (create/current/regenerate), viewer.ts helpers
-- [ ] 04-02-PLAN.md — /invite/[token] join page + POST /api/invite/redeem token redemption
-- [ ] 04-03-PLAN.md — /viewer/[wishlistId] page, ViewerWishItemCard, PurchasedBadge, mark-purchased API
-- [ ] 04-04-PLAN.md — ViewerNoteField, OtherViewerNotes, update-note API, activity log page + ActivityLogEntry
-- [ ] 04-05-PLAN.md — Viewer dashboard (WishlistDashboardCard), settings page (ShareLinkPanel), role redirect guards
+- [x] 04-01-PLAN.md — Types update (viewerNotes), activityLog Firestore rule, invite API routes (create/current/regenerate), viewer.ts helpers
+- [x] 04-02-PLAN.md — /invite/[token] join page + POST /api/invite/redeem token redemption
+- [x] 04-03-PLAN.md — /viewer/[wishlistId] page, ViewerWishItemCard, PurchasedBadge, mark-purchased API
+- [x] 04-04-PLAN.md — ViewerNoteField, OtherViewerNotes, update-note API, activity log page + ActivityLogEntry
+- [x] 04-05-PLAN.md — Viewer dashboard (WishlistDashboardCard), settings page (ShareLinkPanel), role redirect guards
 
 ### Phase 5: PWA + Polish
 **Goal**: The app is installable on a phone home screen, works offline for cached data, renders with the pastel family-friendly visual design, and passes a final security hardening review
