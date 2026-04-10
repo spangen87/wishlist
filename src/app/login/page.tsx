@@ -18,27 +18,32 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const usernameLower = username.trim().toLowerCase();
+      const input = username.trim();
+      let email: string;
 
-      // Look up username — verify it exists (doc only stores { uid })
-      const usernameRef = doc(db, 'usernames', usernameLower);
-      const snap = await getDoc(usernameRef);
+      if (input.includes('@')) {
+        // Viewer flow: direct email login
+        email = input;
+      } else {
+        // Child flow: username → synthetic email via usernames lookup
+        const usernameLower = input.toLowerCase();
+        const usernameRef = doc(db, 'usernames', usernameLower);
+        const snap = await getDoc(usernameRef);
 
-      if (!snap.exists()) {
-        // Do not reveal whether username or password was wrong (anti-enumeration)
-        setError('Username or password incorrect');
-        return;
+        if (!snap.exists()) {
+          setError('Användarnamn eller lösenord är felaktigt');
+          return;
+        }
+
+        email = `${usernameLower}@wishlist.internal`;
       }
 
-      // Derive synthetic email — never stored in the usernames doc
-      const syntheticEmail = `${usernameLower}@wishlist.internal`;
-      const result = await signInWithEmailAndPassword(auth, syntheticEmail, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       const idTokenResult = await result.user.getIdTokenResult();
       const role = idTokenResult.claims['role'] as string | undefined;
       router.push(role === 'child' ? '/wishlist' : '/dashboard');
     } catch {
-      // Firebase auth errors and Firestore errors both surface here
-      setError('Username or password incorrect');
+      setError('Användarnamn eller lösenord är felaktigt');
     } finally {
       setLoading(false);
     }
@@ -47,11 +52,11 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">Log in</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">Logga in</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium mb-1">
-              Username
+              Användarnamn eller e-post
             </label>
             <input
               id="username"
@@ -65,7 +70,7 @@ export default function LoginPage() {
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
+              Lösenord
             </label>
             <input
               id="password"
@@ -85,15 +90,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white rounded px-4 py-2 font-medium disabled:opacity-50"
+            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors disabled:opacity-50"
           >
-            {loading ? 'Logging in\u2026' : 'Log in'}
+            {loading ? 'Loggar in…' : 'Logga in'}
           </button>
         </form>
         <p className="mt-4 text-sm text-center">
-          Not a child account?{' '}
-          <a href="/register" className="text-blue-600 underline">
-            Register as a viewer
+          Inte ett barnkonto?{' '}
+          <a href="/register" className="underline" style={{ color: 'var(--color-accent)' }}>
+            Registrera dig som betraktare
           </a>
         </p>
       </div>
