@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase/client';
 import { getOrCreateWishlist, subscribeToItems, updateItemPosition } from '@/lib/firebase/wishlist';
 import type { WishItemDoc } from '@/types/firestore';
 import { WishItemCard } from '@/components/wishlist/WishItemCard';
@@ -109,17 +111,25 @@ export default function WishlistPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-[#171717]">Din önskelista</h1>
-          {wishlistId && (
-            <a
-              href={`/wishlist/${wishlistId}/settings`}
-              aria-label="Inställningar för önskelistan"
-              className="text-[#6B7280] hover:text-[#171717] min-h-[44px] flex items-center px-2"
+          <div className="flex items-center gap-1">
+            {wishlistId && (
+              <a
+                href={`/wishlist/${wishlistId}/settings`}
+                aria-label="Inställningar för önskelistan"
+                className="text-[#6B7280] hover:text-[#171717] min-h-[44px] flex items-center px-2"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+              </a>
+            )}
+            <button
+              onClick={async () => { await signOut(auth); router.push('/login'); }}
+              className="text-[#6B7280] hover:text-[#171717] min-h-[44px] flex items-center px-2 text-sm"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-              </svg>
-            </a>
-          )}
+              Logga ut
+            </button>
+          </div>
         </div>
 
         {items.length === 0 && !showAddForm ? (
