@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "emulator": "firebase emulators:start --only firestore,auth",
-    "test:rules": "firebase emulators:exec --only firestore --project wishlist-test 'npx jest tests/'"
+    "test:rules": "firebase emulators:exec --only firestore --project wishlist-test 'npx jest tests/'",
+    "generate:icons": "npx tsx scripts/generate-icons.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
