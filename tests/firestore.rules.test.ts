@@ -15,6 +15,7 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
   const VIEWER_UID = 'viewer-uid-456';
   const WISHLIST_ID = 'wishlist-test-1';
   const ITEM_ID = 'item-test-1';
+  const ACTIVITY_LOG_ID = 'activity-test-1';
 
   beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
@@ -57,6 +58,18 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
           itemId: ITEM_ID,
           viewerUids: [VIEWER_UID],
           purchasedBy: VIEWER_UID,
+        }
+      );
+
+      // Create an activity log document
+      await setDoc(
+        doc(db, 'wishlists', WISHLIST_ID, 'activityLog', ACTIVITY_LOG_ID),
+        {
+          id: ACTIVITY_LOG_ID,
+          viewerUid: VIEWER_UID,
+          action: 'marked_purchased',
+          itemId: ITEM_ID,
+          timestamp: new Date(),
         }
       );
     });
@@ -187,5 +200,49 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
     const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
     const inviteRef = doc(viewerCtx.firestore(), 'invites', 'some-token');
     await assertFails(getDoc(inviteRef));
+  });
+
+  // === activityLog subcollection — viewer read only, Admin SDK writes ===
+
+  it('DENY: child UID cannot read activityLog', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const db = childCtx.firestore();
+    await assertFails(
+      getDoc(doc(db, 'wishlists', WISHLIST_ID, 'activityLog', ACTIVITY_LOG_ID))
+    );
+  });
+
+  it('DENY: child UID cannot write to activityLog', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const db = childCtx.firestore();
+    await assertFails(
+      setDoc(doc(db, 'wishlists', WISHLIST_ID, 'activityLog', 'new-entry'), {
+        id: 'new-entry',
+        viewerUid: CHILD_UID,
+        action: 'test',
+        timestamp: new Date(),
+      })
+    );
+  });
+
+  it('ALLOW: viewer UID can read activityLog', async () => {
+    const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
+    const db = viewerCtx.firestore();
+    await assertSucceeds(
+      getDoc(doc(db, 'wishlists', WISHLIST_ID, 'activityLog', ACTIVITY_LOG_ID))
+    );
+  });
+
+  it('DENY: viewer UID cannot write to activityLog (write: if false)', async () => {
+    const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
+    const db = viewerCtx.firestore();
+    await assertFails(
+      setDoc(doc(db, 'wishlists', WISHLIST_ID, 'activityLog', 'new-entry'), {
+        id: 'new-entry',
+        viewerUid: VIEWER_UID,
+        action: 'test',
+        timestamp: new Date(),
+      })
+    );
   });
 });
