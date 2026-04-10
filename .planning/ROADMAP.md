@@ -105,9 +105,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — CSS accent token swap (#F9A87A), Swedish metadata in layout.tsx, OfflineBanner + UpdateToast components
-- [ ] 05-02-PLAN.md — @ducanh2912/next-pwa install, webpack mode, next.config.ts, manifest.ts, icon generation script
-- [ ] 05-03-PLAN.md — activityLog security rule tests + full emulator re-run (13 tests)
+- [x] 05-01-PLAN.md — CSS accent token swap (#F9A87A), Swedish metadata in layout.tsx, OfflineBanner + UpdateToast components
+- [x] 05-02-PLAN.md — @ducanh2912/next-pwa install, webpack mode, next.config.ts, manifest.ts, icon generation script
+- [x] 05-03-PLAN.md — activityLog security rule tests + full emulator re-run (13 tests)
 
 ## Progress
 
