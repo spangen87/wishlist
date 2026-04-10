@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-04-10T15:25:22.573Z"
+milestone_name: PWA
+status: complete
+stopped_at: Milestone v1.0 shipped
+last_updated: "2026-04-10T00:00:00.000Z"
 last_activity: 2026-04-10
 progress:
   total_phases: 5
@@ -18,10 +18,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-06)
+See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Barnet äger sin önskelista och kan enkelt lägga till önskningar; föräldrar och släkt kan koordinera inköp utan att förstöra överraskningen.
-**Current focus:** Phase 05 — pwa-polish
+**Current focus:** Planning next milestone (v1.1)
 
 ## Current Position
 
