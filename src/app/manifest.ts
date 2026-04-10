@@ -5,6 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Min önskelista',
     short_name: 'Önskelista',
     description: 'Barnets önskelista — koordinera inköp utan att förstöra överraskningen',
+    id: '/',
     start_url: '/',
     display: 'standalone',
     background_color: '#FFF9F5',
