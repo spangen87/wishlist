@@ -1,10 +1,11 @@
 ---
 phase: 1
 slug: onboarding-flow-child-account-creation-and-swedish-localizat
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-12
+reviewed_at: 2026-04-12
 ---
 
 # Phase 1 — UI Design Contract
@@ -54,17 +55,16 @@ Source: `src/app/login/page.tsx`, `src/app/dashboard/page.tsx`, `src/components/
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 16px (text-base) | 400 regular | 1.5 |
-| Label | 14px (text-sm) | 500 medium (font-medium) | 1.5 |
+| Label / Error | 14px (text-sm) | 400 regular | 1.5 |
 | Heading (page/step) | 24px (text-2xl) | 700 bold (font-bold) | 1.2 |
-| Display (dashboard section heading) | 28px (text-[28px]) | 600 semibold (font-semibold) | 1.2 |
+| Display (dashboard section heading) | 28px (text-[28px]) | 700 bold (font-bold) | 1.2 |
 
 Notes:
 - Wizard step heading uses 24px bold, centered — matches existing `<h1 className="text-2xl font-bold mb-6 text-center">` in login/register.
-- Section sub-headings (e.g. within ShareLinkPanel) use 20px semibold (text-xl font-semibold) — matches existing panel h2 in ShareLinkPanel.
 - Error/muted text uses 14px regular weight — matches existing `text-sm` error paragraphs.
-- The display role (28px) is reserved for empty state headings on the dashboard — matches existing `text-[28px] font-semibold` in dashboard empty state.
+- The display role (28px) is reserved for empty state headings on the dashboard — existing `text-[28px]` pattern, updated to `font-bold` to align with the 2-weight contract.
 
-Source: `src/app/login/page.tsx` (h1 text-2xl font-bold), `src/app/dashboard/page.tsx` (h2 text-[28px] font-semibold, h1 text-xl font-semibold), `src/components/viewer/ShareLinkPanel.tsx` (h2 text-xl font-semibold).
+Source: `src/app/login/page.tsx` (h1 text-2xl font-bold), `src/app/dashboard/page.tsx` (h2 text-[28px], h1 text-xl), `src/components/viewer/ShareLinkPanel.tsx` (h2 text-xl).
 
 ---
 
@@ -115,7 +115,7 @@ Source: `src/app/globals.css` (all tokens), `src/app/login/page.tsx` (accent on 
 **Step 1 — Create barnkonto:**
 - Heading: "Skapa barnkonto" (text-2xl font-bold mb-6 text-center)
 - Fields (in order): Visningsnamn, Användarnamn, Lösenord, Ålder
-- Field layout: same as login — `<label className="block text-sm font-medium mb-1">` + `<input className="w-full border border-[#E5D5CC] rounded px-3 py-2">`
+- Field layout: same as login — `<label className="block text-sm mb-1">` + `<input className="w-full border border-[#E5D5CC] rounded px-3 py-2">`
 - Age field: `type="number"` input, `min="1"` `max="18"`, label "Ålder"
 - Primary CTA: "Skapa konto" — accent button, `min-h-[44px]`, loading state "Skapar…"
 - Error display: `{error && <p role="alert" className="text-[#DC2626] text-sm">{error}</p>}` — positioned above submit button
@@ -143,7 +143,7 @@ Source: `src/app/globals.css` (all tokens), `src/app/login/page.tsx` (accent on 
 ### Dashboard — "Lägg till barn" button
 
 **Placement:** Below the wishlists grid (or below empty state), above nothing — pinned at the bottom of the content flow, not floating.
-- Style: ghost/outline button — `border border-[#E5D5CC] rounded-xl px-4 py-2 text-sm font-medium text-[#171717] hover:bg-[#FFF0E8] min-h-[44px] transition-colors`
+- Style: ghost/outline button — `border border-[#E5D5CC] rounded-xl px-4 py-2 text-sm font-bold text-[#171717] hover:bg-[#FFF0E8] min-h-[44px] transition-colors`
 - This is Claude's discretion per CONTEXT.md D-discretion item 4.
 - Label: "Lägg till barn"
 - Width: `w-full` on mobile, `w-auto` on sm breakpoint — left-aligned at sm+
