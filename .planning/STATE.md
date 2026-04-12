@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: PWA
-status: complete
-stopped_at: Milestone v1.0 shipped
-last_updated: "2026-04-10T00:00:00.000Z"
-last_activity: 2026-04-10
+milestone_name: milestone
+status: executing
+stopped_at: Phase 1 UI-SPEC approved
+last_updated: "2026-04-12T08:50:55.551Z"
+last_activity: 2026-04-12 -- Phase 1 planning complete
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-04-10)
 Phase: 05 (pwa-polish) — EXECUTING
 Plan: 1 of 3
 Plans: 3/3 complete
-Status: Executing Phase 05
-Last activity: 2026-04-10
+Status: Ready to execute
+Last activity: 2026-04-12 -- Phase 1 planning complete
 
 Progress: [███░░░░░░░] 60%
 
@@ -80,6 +80,10 @@ Run the end-to-end checkpoint from `02-03-PLAN.md` Task 2 to confirm all 5 AUTH 
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 1 added: Onboarding flow, child account creation, and Swedish localization
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
@@ -103,6 +107,6 @@ None. Username race condition concern from earlier STATE.md is resolved — atom
 
 ## Session Continuity
 
-Last session: 2026-04-09T20:11:22.052Z
-Stopped at: Phase 5 UI-SPEC approved
+Last session: 2026-04-11T23:11:23.019Z
+Stopped at: Phase 1 UI-SPEC approved
 Resume with: `/gsd-execute-phase 03` (after completing human smoke test)

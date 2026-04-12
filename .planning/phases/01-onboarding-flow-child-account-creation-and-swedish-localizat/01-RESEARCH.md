@@ -489,17 +489,19 @@ The wizard's Step 2 must write `title` to `wishlists/{childUid}`. The logged-in 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `/api/invite/current` allow a viewer/parent token for a child's wishlistId?**
    - What we know: ShareLinkPanel calls `/api/invite/current?wishlistId=...` with `auth.currentUser?.getIdToken()`
    - What's unclear: In v1.0, this was called only in the child's own session. Wizard calls it in the parent/viewer session.
    - Recommendation: Read `/api/invite/current/route.ts` and `/api/invite/create/route.ts` before implementing Step 3 — verify they accept viewer tokens.
+   - **RESOLVED:** `/api/invite/current` enforces `childUid === decoded.uid` — it rejects viewer/parent tokens with 403. Resolution: Plan 01-01 creates a new `/api/invite/create-for-child` route that accepts viewer tokens by checking `viewerUids.includes(decoded.uid)` instead. The wizard Step 3 uses this new route via an inline component (not ShareLinkPanel). User approved this deviation from D-02. See `01-02-PLAN.md` `<decision_overrides>` block for full traceability.
 
 2. **Firestore rules: can a viewer write the `title` field to a new wishlist?**
    - What we know: All Firestore writes in the codebase use Admin SDK (bypasses rules)
    - What's unclear: client-side `updateDoc` for wishlist title would be subject to rules
    - Recommendation: Use Admin SDK via API route for the wishlist title write.
+   - **RESOLVED:** Client-side `updateDoc` by a viewer is rejected by Firestore rules (only the child owner can update the wishlist doc). Resolution: Plan 01-01 creates `/api/wishlist/update-title` — an Admin SDK route that accepts a viewer idToken and writes the title server-side, bypassing Firestore rules. This is consistent with all other write patterns in the codebase.
 
 ---
 
