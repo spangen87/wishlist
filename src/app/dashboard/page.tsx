@@ -36,7 +36,7 @@ export default function DashboardPage() {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
         const data = snap.data();
-        const name: string = data.username ?? data.email ?? uid;
+        const name: string = data.displayName ?? data.username ?? data.email ?? uid;
         setChildNames((prev) => new Map(prev).set(uid, name));
       }
     } catch { /* silent */ }
@@ -136,6 +136,14 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+          <div className="mt-4">
+            <button
+              onClick={() => router.push('/add-child')}
+              className="border border-[#E5D5CC] rounded-xl px-4 py-2 text-sm font-bold text-[#171717] hover:bg-[#FFF0E8] min-h-[44px] transition-colors w-full sm:w-auto"
+            >
+              Lägg till barn
+            </button>
+          </div>
         </div>
       </main>
     );
