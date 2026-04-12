@@ -5,11 +5,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const { username, password, displayName, age } = body as {
+  const { username, password, displayName, age, viewerIdToken } = body as {
     username?: string;
     password?: string;
     displayName?: string;
     age?: number | string;
+    viewerIdToken?: string;
   };
 
   if (!username || !password || !displayName) {
@@ -89,9 +90,19 @@ export async function POST(request: NextRequest) {
     displayName: displayName.trim(),
     age: ageNum,
   });
+  // If the caller provided their idToken, add them as the first viewer
+  let viewerUids: string[] = [];
+  if (viewerIdToken) {
+    try {
+      const decoded = await adminAuth.verifyIdToken(viewerIdToken);
+      viewerUids = [decoded.uid];
+    } catch {
+      // Invalid token — proceed without adding viewer (non-fatal)
+    }
+  }
   batch.set(adminDb.collection('wishlists').doc(userRecord.uid), {
     childUid: userRecord.uid,
-    viewerUids: [],
+    viewerUids,
     createdAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();

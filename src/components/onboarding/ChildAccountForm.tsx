@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { auth } from '@/lib/firebase/client';
 
 interface ChildAccountFormProps {
   onSuccess: (uid: string) => void;
@@ -38,6 +39,7 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
 
     setLoading(true);
     try {
+      const viewerIdToken = await auth.currentUser?.getIdToken().catch(() => undefined);
       const res = await fetch('/api/auth/register-child', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,6 +48,7 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
           password,
           displayName: displayName.trim(),
           age: ageNum,
+          ...(viewerIdToken ? { viewerIdToken } : {}),
         }),
       });
       if (res.status === 409) {
