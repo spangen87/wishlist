@@ -39,7 +39,7 @@ export default function RegisterPage() {
       // Without this, getIdTokenResult() would return a cached token without the 'viewer' claim.
       await credential.user.getIdToken(/* forceRefresh = */ true);
 
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === 'auth/email-already-in-use') {
