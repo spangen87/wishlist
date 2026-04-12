@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "wishlist-dev"
-  }
+    "default": "wishlist-dev",
+    "wishlist-prod": "wishlist-prod-c742c"
+  },
+  "targets": {},
+  "etags": {}
 }
