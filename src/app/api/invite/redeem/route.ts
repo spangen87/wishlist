@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const { uid } = decoded;
 
-  // Step 2: Read invite — Admin SDK only (client rules: allow read, write: if false)
+  // Step 2: Read invite — Admin SDK only
   const inviteRef = adminDb.collection('invites').doc(token);
   const inviteSnap = await inviteRef.get();
 
@@ -36,34 +36,57 @@ export async function POST(request: NextRequest) {
   }
 
   const { wishlistId } = invite;
+  // Default to 'viewer' for backward compatibility with invites created before D-11
+  const inviteType: 'parent' | 'viewer' = invite.type === 'parent' ? 'parent' : 'viewer';
 
-  // Step 3: Check if already a viewer (idempotent — safe to call twice)
+  // Step 3: Read wishlist
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
   if (!wishlistSnap.exists) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
 
-  // Block self-invite: child cannot become a viewer of their own wishlist
+  // Block self-invite: child cannot join their own wishlist
   const childUid: string = wishlistSnap.data()!.childUid;
   if (childUid === uid) {
     return NextResponse.json({ error: 'Du kan inte gå med i din egen önskelista' }, { status: 409 });
   }
 
+  if (inviteType === 'parent') {
+    // Parent invite branch (D-12)
+    const existingParentUids: string[] = wishlistSnap.data()!.parentUids ?? [];
+    if (existingParentUids.includes(uid)) {
+      return NextResponse.json({ ok: true, wishlistId, wishlistRole: 'parent', alreadyMember: true });
+    }
+
+    // Add to parentUids
+    await adminDb.collection('wishlists').doc(wishlistId).update({
+      parentUids: FieldValue.arrayUnion(uid),
+    });
+
+    // Upgrade claim to parent (even if currently viewer — D-12)
+    await adminAuth.setCustomUserClaims(uid, { role: 'parent' });
+
+    // Upsert user profile
+    await adminDb.collection('users').doc(uid).set(
+      { role: 'parent' },
+      { merge: true }
+    );
+
+    return NextResponse.json({ ok: true, wishlistId, wishlistRole: 'parent', alreadyMember: false });
+  }
+
+  // Viewer invite branch — unchanged from original (D-02, D-06)
   const existingViewerUids: string[] = wishlistSnap.data()!.viewerUids ?? [];
   if (existingViewerUids.includes(uid)) {
-    // Already a viewer — return wishlistId so client can redirect
     return NextResponse.json({ ok: true, wishlistId, alreadyViewer: true });
   }
 
-  // Step 4: Add uid to viewerUids atomically
   await adminDb.collection('wishlists').doc(wishlistId).update({
     viewerUids: FieldValue.arrayUnion(uid),
   });
 
-  // Step 5: Set viewer custom claim
   await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
 
-  // Step 6: Upsert user profile with viewer role
   await adminDb.collection('users').doc(uid).set(
     { role: 'viewer' },
     { merge: true }
