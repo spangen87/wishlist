@@ -47,17 +47,17 @@ service cloud.firestore {
         allow write: if isOwner(wishlistId) || isParent(wishlistId);
       }
 
-      // Purchase status subcollection — VIEWER-ONLY, child CANNOT read (D-03)
-      // This is the irreversible privacy boundary. Child UID is NOT in viewerUids.
+      // Purchase status subcollection — viewers AND parents can read/write, child CANNOT (D-03)
+      // This is the irreversible privacy boundary. Child UID is NOT in viewerUids or parentUids.
       // Do NOT add any rule that allows childUid to read this subcollection.
       match /purchaseStatus/{itemId} {
-        allow read, write: if isViewer(wishlistId);
+        allow read, write: if isViewer(wishlistId) || isParent(wishlistId);
       }
 
-      // Activity log subcollection — VIEWER READ ONLY, written via Admin SDK only (D-18)
+      // Activity log subcollection — viewers AND parents can read, written via Admin SDK only (D-18)
       // Child CANNOT read. Client writes are forbidden (Admin SDK bypasses rules).
       match /activityLog/{entryId} {
-        allow read: if isViewer(wishlistId);
+        allow read: if isViewer(wishlistId) || isParent(wishlistId);
         allow write: if false;
       }
     }
