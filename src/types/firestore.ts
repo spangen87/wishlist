@@ -5,7 +5,11 @@ export interface WishlistDoc {
   id: string;
   childUid: string;       // UID of the child who owns this wishlist
   viewerUids: string[];   // UIDs of viewers who have been granted access
+  parentUids: string[];   // UIDs of users with parent-level admin access (D-04)
   createdAt: Timestamp;
+  title?: string;         // Optional: parent-given wishlist name (e.g. "Elsas önskelista")
+  currentInviteToken?: string;          // Active share link token for viewer invites
+  currentParentInviteToken?: string;    // Active share link token for parent invites (D-11)
 }
 
 // wishlists/{wishlistId}/items/{itemId}
@@ -48,6 +52,8 @@ export interface UserDoc {
   email: string;        // Real email for viewers; synthetic email for children
   role: 'child' | 'viewer' | 'parent';
   createdAt: Timestamp;
+  displayName?: string; // Optional: human-readable child name shown in dashboard (e.g. "Elsa")
+  age?: number;         // Optional: stored for future use; no UI in v1.1
 }
 
 // usernames/{username}
@@ -61,4 +67,5 @@ export interface InviteDoc {
   token: string;
   createdAt: Timestamp;
   active: boolean;  // Set to false to revoke share link (SHARE-03)
+  type: 'parent' | 'viewer';  // D-11: distinguishes parent vs viewer invite
 }

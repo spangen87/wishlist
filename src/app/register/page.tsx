@@ -23,15 +23,15 @@ export default function RegisterPage() {
       // Step 2: Get ID token to prove identity to the server
       const idToken = await credential.user.getIdToken();
 
-      // Step 3: Set viewer custom claim via Route Handler
-      const response = await fetch('/api/auth/set-viewer-claim', {
+      // Step 3: Set parent custom claim via Route Handler
+      const response = await fetch('/api/auth/set-parent-claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
 
       if (!response.ok) {
-        setError('Registration failed, please try again');
+        setError('Registreringen misslyckades, försök igen');
         return;
       }
 
@@ -39,15 +39,15 @@ export default function RegisterPage() {
       // Without this, getIdTokenResult() would return a cached token without the 'viewer' claim.
       await credential.user.getIdToken(/* forceRefresh = */ true);
 
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === 'auth/email-already-in-use') {
-        setError('An account with this email already exists');
+        setError('Det finns redan ett konto med den e-postadressen');
       } else if (code === 'auth/weak-password') {
-        setError('Password must be at least 6 characters');
+        setError('Lösenordet måste vara minst 6 tecken');
       } else {
-        setError('Registration failed, please try again');
+        setError('Registreringen misslyckades, försök igen');
       }
     } finally {
       setLoading(false);
@@ -55,13 +55,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-screen items-center justify-center p-4 bg-[#FFF9F5]">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">Register as a viewer</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">Skapa konto</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email
+              E-post
             </label>
             <input
               id="email"
@@ -70,12 +70,12 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-[#E5D5CC] rounded px-3 py-2"
             />
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
+              Lösenord
             </label>
             <input
               id="password"
@@ -84,26 +84,26 @@ export default function RegisterPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-[#E5D5CC] rounded px-3 py-2"
             />
           </div>
           {error && (
-            <p role="alert" className="text-red-600 text-sm">
+            <p role="alert" className="text-[#DC2626] text-sm">
               {error}
             </p>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white rounded px-4 py-2 font-medium disabled:opacity-50"
+            className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors disabled:opacity-50"
           >
-            {loading ? 'Registering\u2026' : 'Create account'}
+            {loading ? 'Skapar…' : 'Skapa konto'}
           </button>
         </form>
         <p className="mt-4 text-sm text-center">
-          Already have an account?{' '}
-          <a href="/login" className="text-blue-600 underline">
-            Log in
+          Har du redan ett konto?{' '}
+          <a href="/login" className="underline" style={{ color: 'var(--color-accent)' }}>
+            Logga in
           </a>
         </p>
       </div>

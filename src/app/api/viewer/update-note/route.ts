@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
   const viewerUids: string[] = wishlistSnap.data()!.viewerUids ?? [];
-  if (!viewerUids.includes(uid)) {
+  const parentUids: string[] = wishlistSnap.data()!.parentUids ?? [];
+  if (!viewerUids.includes(uid) && !parentUids.includes(uid)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

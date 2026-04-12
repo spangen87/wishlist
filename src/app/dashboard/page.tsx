@@ -1,12 +1,13 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { subscribeToViewerWishlists } from '@/lib/firebase/viewer';
+import { subscribeToViewerWishlists, subscribeToParentWishlists } from '@/lib/firebase/viewer';
 import { WishlistDashboardCard } from '@/components/viewer/WishlistDashboardCard';
+import { ParentWishlistDashboardCard } from '@/components/viewer/ParentWishlistDashboardCard';
 import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistStats {
@@ -18,29 +19,33 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, role, loading } = useAuth();
 
-  const [wishlists, setWishlists] = useState<WishlistDoc[]>([]);
+  const [parentWishlists, setParentWishlists] = useState<WishlistDoc[]>([]);
+  const [viewerWishlists, setViewerWishlists] = useState<WishlistDoc[]>([]);
   const [childNames, setChildNames] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState<Map<string, WishlistStats>>(new Map());
-  const [dataLoading, setDataLoading] = useState(true);
+  const [parentDataLoading, setParentDataLoading] = useState(true);
+  const [viewerDataLoading, setViewerDataLoading] = useState(true);
+  const fetchedNamesRef = useRef(new Set<string>());
 
-  // Auth + role redirects (D-21)
+  // Auth + role redirects
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
-  // Fetch child display name — cached
+  // Fetch child display name — stable ref prevents unnecessary re-subscriptions
   const fetchChildName = useCallback(async (uid: string) => {
-    if (childNames.has(uid)) return;
+    if (fetchedNamesRef.current.has(uid)) return;
+    fetchedNamesRef.current.add(uid);
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
         const data = snap.data();
-        const name: string = data.username ?? data.email ?? uid;
+        const name: string = data.displayName ?? data.username ?? data.email ?? uid;
         setChildNames((prev) => new Map(prev).set(uid, name));
       }
     } catch { /* silent */ }
-  }, [childNames]);
+  }, []);
 
   // Subscribe to wishlist stats (item count + purchased count) for a single wishlist
   const subscribeToStats = useCallback((wishlistId: string) => {
@@ -66,30 +71,48 @@ export default function DashboardPage() {
     return () => { itemUnsub(); statusUnsub(); };
   }, []);
 
-  // Subscribe to viewer's wishlists
+  // Subscribe to both parent and viewer wishlists
   useEffect(() => {
-    if (loading || !user || role !== 'viewer') return;
+    if (loading || !user) return;
 
-    const unsubLists = subscribeToViewerWishlists(user.uid, (newLists) => {
-      setWishlists(newLists);
-      setDataLoading(false);
+    const unsubParent = subscribeToParentWishlists(user.uid, (newLists, fromCache) => {
+      setParentWishlists(newLists);
+      if (!fromCache || newLists.length > 0) {
+        setParentDataLoading(false);
+      }
       newLists.forEach((wl) => {
         fetchChildName(wl.childUid);
         subscribeToStats(wl.id);
       });
     });
 
-    return () => unsubLists();
-  // subscribeToStats is intentionally not in deps — stable ref via useCallback
+    const unsubViewer = subscribeToViewerWishlists(user.uid, (newLists, fromCache) => {
+      setViewerWishlists(newLists);
+      if (!fromCache || newLists.length > 0) {
+        setViewerDataLoading(false);
+      }
+      newLists.forEach((wl) => {
+        fetchChildName(wl.childUid);
+        subscribeToStats(wl.id);
+      });
+    });
+
+    return () => {
+      unsubParent();
+      unsubViewer();
+    };
+  // fetchChildName and subscribeToStats are stable via useCallback — intentionally omitted
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, role, fetchChildName]);
+  }, [loading, user]);
 
   async function handleLogout() {
     await signOut(auth);
     router.push('/login');
   }
 
-  if (loading || (role === 'viewer' && dataLoading)) {
+  const dataLoading = parentDataLoading || viewerDataLoading;
+
+  if (loading || dataLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#FFF9F5]">
         <p className="text-[#6B7280]">Laddar…</p>
@@ -99,33 +122,67 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  // viewer role — show grid
-  if (role === 'viewer') {
-    return (
-      <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-xl font-semibold text-[#171717]">Mina önskelistor</h1>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
-            >
-              Logga ut
-            </button>
-          </div>
+  return (
+    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-[#171717]">Mina önskelistor</h1>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
+          >
+            Logga ut
+          </button>
+        </div>
 
-          {wishlists.length === 0 ? (
-            <div className="text-center py-16">
-              <h2 className="text-[28px] font-semibold text-[#171717] leading-[1.2]">
-                Inga önskelistor än
-              </h2>
-              <p className="mt-4 text-base text-[#6B7280] max-w-sm mx-auto">
-                Du är inte tillagd på någon önskelista ännu. Be ett barn att dela sin länk med dig.
-              </p>
+        {/* Section 1: Mina barn */}
+        <section>
+          <h2 className="text-lg font-semibold text-[#171717] mb-4">Mina barn</h2>
+          {parentWishlists.length === 0 ? (
+            <div className="text-center py-8 border border-dashed border-[#E5D5CC] rounded-2xl">
+              <p className="text-[#6B7280] text-sm">Du har inga barn tillagda ännu.</p>
+              <button
+                onClick={() => router.push('/add-child')}
+                className="mt-3 text-[#F97316] font-semibold text-sm hover:underline min-h-[44px]"
+              >
+                Lägg till ett barn →
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {wishlists.map((wl) => (
+              {parentWishlists.map((wl) => (
+                <ParentWishlistDashboardCard
+                  key={wl.id}
+                  wishlist={wl}
+                  childName={childNames.get(wl.childUid) ?? '…'}
+                  itemCount={stats.get(wl.id)?.itemCount ?? 0}
+                  purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
+                />
+              ))}
+            </div>
+          )}
+          {parentWishlists.length > 0 && (
+            <button
+              onClick={() => router.push('/add-child')}
+              className="mt-4 border border-[#E5D5CC] rounded-xl px-4 py-2 text-sm font-bold text-[#171717] hover:bg-[#FFF0E8] min-h-[44px] transition-colors"
+            >
+              Lägg till barn
+            </button>
+          )}
+        </section>
+
+        {/* Divider */}
+        <div className="my-8 border-t border-[#E5D5CC]" />
+
+        {/* Section 2: Jag är inbjuden till */}
+        <section>
+          <h2 className="text-lg font-semibold text-[#171717] mb-4">Jag är inbjuden till</h2>
+          {viewerWishlists.length === 0 ? (
+            <p className="text-[#6B7280] text-sm">Du är inte inbjuden till några önskelistor.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {viewerWishlists.map((wl) => (
                 <WishlistDashboardCard
                   key={wl.id}
                   wishlist={wl}
@@ -136,26 +193,8 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-        </div>
-      </main>
-    );
-  }
-
-  // Fallback — non-viewer, non-child (e.g. parent role or undefined): show stub
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-4 bg-[#FFF9F5]">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-[#171717]">Dashboard</h1>
-        <p className="mt-2 text-[#6B7280]">
-          Inloggad som <span className="font-medium">{user.email}</span>
-        </p>
+        </section>
       </div>
-      <button
-        onClick={handleLogout}
-        className="bg-[#DC2626] text-white rounded px-6 py-2 font-medium hover:bg-red-700 min-h-[44px]"
-      >
-        Logga ut
-      </button>
     </main>
   );
 }

@@ -7,20 +7,41 @@ import type { WishlistDoc, PurchaseStatusDoc, ActivityLogDoc } from '@/types/fir
 
 // VIEW-06: Subscribe to all wishlists the viewer has access to.
 // Uses array-contains query on viewerUids — requires no composite index (single field).
+// fromCache=true means the result came from local IndexedDB — caller should stay in loading
+// state until fromCache=false arrives (the confirmed network result).
 export function subscribeToViewerWishlists(
   viewerUid: string,
-  onWishlists: (wishlists: WishlistDoc[]) => void
+  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void
 ): () => void {
   const q = query(
     collection(db, 'wishlists'),
     where('viewerUids', 'array-contains', viewerUid)
   );
-  return onSnapshot(q, (snap) => {
+  return onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
     const lists = snap.docs.map((d) => ({
       id: d.id,
       ...d.data() as Omit<WishlistDoc, 'id'>,
     }));
-    onWishlists(lists);
+    onWishlists(lists, snap.metadata.fromCache);
+  });
+}
+
+// D-10: Subscribe to all wishlists the user has parent-level access to.
+// Uses array-contains query on parentUids — no composite index required (single field).
+export function subscribeToParentWishlists(
+  parentUid: string,
+  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void
+): () => void {
+  const q = query(
+    collection(db, 'wishlists'),
+    where('parentUids', 'array-contains', parentUid)
+  );
+  return onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+    const lists = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data() as Omit<WishlistDoc, 'id'>,
+    }));
+    onWishlists(lists, snap.metadata.fromCache);
   });
 }
 

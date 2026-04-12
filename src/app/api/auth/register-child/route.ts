@@ -5,11 +5,25 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const { username, password } = body as { username?: string; password?: string };
+  const { username, password, displayName, age, viewerIdToken } = body as {
+    username?: string;
+    password?: string;
+    displayName?: string;
+    age?: number | string;
+    viewerIdToken?: string;
+  };
 
-  if (!username || !password) {
+  if (!username || !password || !displayName) {
     return NextResponse.json(
-      { error: 'username and password required' },
+      { error: 'username, password, and displayName required' },
+      { status: 400 },
+    );
+  }
+
+  const ageNum = Number(age);
+  if (!age || isNaN(ageNum) || ageNum < 1 || ageNum > 18) {
+    return NextResponse.json(
+      { error: 'age must be a number between 1 and 18' },
       { status: 400 },
     );
   }
@@ -47,7 +61,7 @@ export async function POST(request: NextRequest) {
     userRecord = await adminAuth.createUser({
       email: syntheticEmail,
       password,
-      displayName: usernameLower,
+      displayName: displayName.trim(),
     });
   } catch (err: unknown) {
     // Clean up the claimed username slot if Auth creation fails
@@ -72,6 +86,24 @@ export async function POST(request: NextRequest) {
     username: usernameLower,
     email: syntheticEmail,
     role: 'child',
+    createdAt: FieldValue.serverTimestamp(),
+    displayName: displayName.trim(),
+    age: ageNum,
+  });
+  // If the caller provided their idToken, add them as the first parent (D-05)
+  let parentUids: string[] = [];
+  if (viewerIdToken) {
+    try {
+      const decoded = await adminAuth.verifyIdToken(viewerIdToken);
+      parentUids = [decoded.uid];
+    } catch {
+      // Invalid token — proceed without parent (non-fatal)
+    }
+  }
+  batch.set(adminDb.collection('wishlists').doc(userRecord.uid), {
+    childUid: userRecord.uid,
+    viewerUids: [],
+    parentUids,
     createdAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();
