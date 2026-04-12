@@ -6,6 +6,7 @@ export interface WishlistDoc {
   childUid: string;       // UID of the child who owns this wishlist
   viewerUids: string[];   // UIDs of viewers who have been granted access
   createdAt: Timestamp;
+  title?: string;         // Optional: parent-given wishlist name (e.g. "Elsas önskelista")
 }
 
 // wishlists/{wishlistId}/items/{itemId}
@@ -48,6 +49,8 @@ export interface UserDoc {
   email: string;        // Real email for viewers; synthetic email for children
   role: 'child' | 'viewer' | 'parent';
   createdAt: Timestamp;
+  displayName?: string; // Optional: human-readable child name shown in dashboard (e.g. "Elsa")
+  age?: number;         // Optional: stored for future use; no UI in v1.1
 }
 
 // usernames/{username}
