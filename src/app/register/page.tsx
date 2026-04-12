@@ -23,8 +23,8 @@ export default function RegisterPage() {
       // Step 2: Get ID token to prove identity to the server
       const idToken = await credential.user.getIdToken();
 
-      // Step 3: Set viewer custom claim via Route Handler
-      const response = await fetch('/api/auth/set-viewer-claim', {
+      // Step 3: Set parent custom claim via Route Handler
+      const response = await fetch('/api/auth/set-parent-claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
