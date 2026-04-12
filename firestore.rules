@@ -19,6 +19,12 @@ service cloud.firestore {
              request.auth.uid in get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.viewerUids;
     }
 
+    function isParent(wishlistId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/wishlists/$(wishlistId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.parentUids;
+    }
+
     // Root wishlist document — child (owner) can read/write their own
     // request.auth.uid == wishlistId covers first-login reads where the doc doesn't exist yet
     // (wishlist ID is deterministically the child's UID, so this is safe)
@@ -28,7 +34,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == wishlistId ||
         request.auth.uid == resource.data.childUid ||
-        request.auth.uid in resource.data.viewerUids
+        request.auth.uid in resource.data.viewerUids ||
+        request.auth.uid in resource.data.parentUids
       );
       allow create: if isAuthenticated();
       allow update, delete: if isOwner(wishlistId);
@@ -36,8 +43,8 @@ service cloud.firestore {
       // Items subcollection — child-readable AND child-writable (D-02)
       // Viewers can also read items (to show the wishlist to them)
       match /items/{itemId} {
-        allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId));
-        allow write: if isOwner(wishlistId);
+        allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId) || isParent(wishlistId));
+        allow write: if isOwner(wishlistId) || isParent(wishlistId);
       }
 
       // Purchase status subcollection — VIEWER-ONLY, child CANNOT read (D-03)

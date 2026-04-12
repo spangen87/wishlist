@@ -90,19 +90,20 @@ export async function POST(request: NextRequest) {
     displayName: displayName.trim(),
     age: ageNum,
   });
-  // If the caller provided their idToken, add them as the first viewer
-  let viewerUids: string[] = [];
+  // If the caller provided their idToken, add them as the first parent (D-05)
+  let parentUids: string[] = [];
   if (viewerIdToken) {
     try {
       const decoded = await adminAuth.verifyIdToken(viewerIdToken);
-      viewerUids = [decoded.uid];
+      parentUids = [decoded.uid];
     } catch {
-      // Invalid token — proceed without adding viewer (non-fatal)
+      // Invalid token — proceed without parent (non-fatal)
     }
   }
   batch.set(adminDb.collection('wishlists').doc(userRecord.uid), {
     childUid: userRecord.uid,
-    viewerUids,
+    viewerUids: [],
+    parentUids,
     createdAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();
