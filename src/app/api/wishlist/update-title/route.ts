@@ -29,15 +29,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Verify caller is a viewer on this wishlist (in viewerUids) or the owner
+  // Verify caller is a parent on this wishlist (in parentUids) or the owner (D-23)
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
   if (!wishlistSnap.exists) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
   const data = wishlistSnap.data()!;
   const isOwner = data.childUid === decoded.uid;
-  const isViewer = Array.isArray(data.viewerUids) && data.viewerUids.includes(decoded.uid);
-  if (!isOwner && !isViewer) {
+  const isParent = Array.isArray(data.parentUids) && data.parentUids.includes(decoded.uid);
+  if (!isOwner && !isParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
