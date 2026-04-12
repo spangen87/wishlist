@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { subscribeToItems } from '@/lib/firebase/wishlist';
 import { subscribeToPurchaseStatus } from '@/lib/firebase/viewer';
 import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
+import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -25,6 +26,15 @@ export default function ViewerWishlistPage({
   const [displayNames, setDisplayNames] = useState<Map<string, string>>(new Map());
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Parent-specific state
+  const [wishlistTitle, setWishlistTitle] = useState<string>('');
+  const [isParent, setIsParent] = useState(false);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
 
   // Auth guard
   useEffect(() => {
@@ -47,9 +57,22 @@ export default function ViewerWishlistPage({
     }
   }, [displayNames]);
 
-  // Subscribe to items and purchaseStatus in parallel
+  // Subscribe to items and purchaseStatus in parallel; read wishlist doc for parent check
   useEffect(() => {
     if (loading || !user) return;
+
+    // Read wishlist doc to get title and check parent access
+    getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
+      if (wishlistDoc.exists()) {
+        const wlData = wishlistDoc.data();
+        setWishlistTitle(wlData.title ?? '');
+        setRenameValue(wlData.title ?? '');
+        const parentUids: string[] = wlData.parentUids ?? [];
+        setIsParent(parentUids.includes(user.uid));
+      }
+    }).catch(() => {
+      // Silent — title and parent controls simply won't show
+    });
 
     const unsubItems = subscribeToItems(wishlistId, (newItems) => {
       setItems(newItems);
@@ -104,6 +127,32 @@ export default function ViewerWishlistPage({
     }
   }
 
+  async function handleRename() {
+    setIsRenaming(false);
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === wishlistTitle) return;
+    setRenameError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return;
+      const res = await fetch('/api/wishlist/update-title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, title: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setRenameError(body.error ?? 'Kunde inte spara nytt namn.');
+        setRenameValue(wishlistTitle);
+      } else {
+        setWishlistTitle(trimmed);
+      }
+    } catch {
+      setRenameError('Något gick fel. Försök igen.');
+      setRenameValue(wishlistTitle);
+    }
+  }
+
   if (loading || dataLoading) return <LoadingSkeleton />;
   if (!user) return null;
 
@@ -136,6 +185,77 @@ export default function ViewerWishlistPage({
             Visa aktivitetslogg
           </Link>
         </div>
+
+        {/* Parent-only controls (D-14) — invisible to viewers (D-15) */}
+        {isParent && (
+          <div className="mb-6 flex flex-col gap-4">
+            {/* Inline rename (D-24) */}
+            <div className="flex items-center gap-2">
+              {isRenaming ? (
+                <input
+                  type="text"
+                  value={renameValue}
+                  autoFocus
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={handleRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRename();
+                    if (e.key === 'Escape') {
+                      setIsRenaming(false);
+                      setRenameValue(wishlistTitle);
+                    }
+                  }}
+                  className="flex-1 border border-[#E5D5CC] rounded-md px-3 py-2 text-xl font-semibold text-[#171717] bg-white"
+                  aria-label="Redigera önskelistans namn"
+                />
+              ) : (
+                <button
+                  onClick={() => setIsRenaming(true)}
+                  className="text-xl font-semibold text-[#171717] hover:text-[#F97316] transition-colors text-left"
+                  title="Klicka för att byta namn"
+                >
+                  {wishlistTitle || 'Namnlös önskelista'}
+                  <span className="ml-2 text-sm font-normal text-[#6B7280]">✎</span>
+                </button>
+              )}
+            </div>
+            {renameError && (
+              <p role="alert" className="text-[#DC2626] text-sm">
+                {renameError}
+              </p>
+            )}
+
+            {/* Settings link and add item toggle */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <button
+                onClick={() => setShowAddItem((v) => !v)}
+                className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors"
+              >
+                {showAddItem ? 'Avbryt' : 'Lägg till önskemål'}
+              </button>
+              <Link
+                href={`/wishlist/${wishlistId}/settings`}
+                className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
+              >
+                Inställningar
+              </Link>
+            </div>
+
+            {/* Inline add item form (D-14) */}
+            {showAddItem && (
+              <ParentAddItemForm
+                wishlistId={wishlistId}
+                onClose={() => setShowAddItem(false)}
+                onError={(msg) => setAddItemError(msg)}
+              />
+            )}
+            {addItemError && (
+              <p role="alert" className="text-[#DC2626] text-sm">
+                {addItemError}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Items */}
         {items.length === 0 ? (
