@@ -11,7 +11,8 @@ import type { WishlistDoc, PurchaseStatusDoc, ActivityLogDoc } from '@/types/fir
 // state until fromCache=false arrives (the confirmed network result).
 export function subscribeToViewerWishlists(
   viewerUid: string,
-  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void
+  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void,
+  onError?: () => void
 ): () => void {
   const q = query(
     collection(db, 'wishlists'),
@@ -23,14 +24,15 @@ export function subscribeToViewerWishlists(
       ...d.data() as Omit<WishlistDoc, 'id'>,
     }));
     onWishlists(lists, snap.metadata.fromCache);
-  });
+  }, () => { onError?.(); });
 }
 
 // D-10: Subscribe to all wishlists the user has parent-level access to.
 // Uses array-contains query on parentUids — no composite index required (single field).
 export function subscribeToParentWishlists(
   parentUid: string,
-  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void
+  onWishlists: (wishlists: WishlistDoc[], fromCache: boolean) => void,
+  onError?: () => void
 ): () => void {
   const q = query(
     collection(db, 'wishlists'),
@@ -42,7 +44,7 @@ export function subscribeToParentWishlists(
       ...d.data() as Omit<WishlistDoc, 'id'>,
     }));
     onWishlists(lists, snap.metadata.fromCache);
-  });
+  }, () => { onError?.(); });
 }
 
 // VIEW-01, VIEW-05: Subscribe to purchaseStatus subcollection.

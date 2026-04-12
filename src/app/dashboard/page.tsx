@@ -75,27 +75,35 @@ export default function DashboardPage() {
   useEffect(() => {
     if (loading || !user) return;
 
-    const unsubParent = subscribeToParentWishlists(user.uid, (newLists, fromCache) => {
-      setParentWishlists(newLists);
-      if (!fromCache || newLists.length > 0) {
-        setParentDataLoading(false);
-      }
-      newLists.forEach((wl) => {
-        fetchChildName(wl.childUid);
-        subscribeToStats(wl.id);
-      });
-    });
+    const unsubParent = subscribeToParentWishlists(
+      user.uid,
+      (newLists, fromCache) => {
+        setParentWishlists(newLists);
+        if (!fromCache || newLists.length > 0) {
+          setParentDataLoading(false);
+        }
+        newLists.forEach((wl) => {
+          fetchChildName(wl.childUid);
+          subscribeToStats(wl.id);
+        });
+      },
+      () => setParentDataLoading(false)
+    );
 
-    const unsubViewer = subscribeToViewerWishlists(user.uid, (newLists, fromCache) => {
-      setViewerWishlists(newLists);
-      if (!fromCache || newLists.length > 0) {
-        setViewerDataLoading(false);
-      }
-      newLists.forEach((wl) => {
-        fetchChildName(wl.childUid);
-        subscribeToStats(wl.id);
-      });
-    });
+    const unsubViewer = subscribeToViewerWishlists(
+      user.uid,
+      (newLists, fromCache) => {
+        setViewerWishlists(newLists);
+        if (!fromCache || newLists.length > 0) {
+          setViewerDataLoading(false);
+        }
+        newLists.forEach((wl) => {
+          fetchChildName(wl.childUid);
+          subscribeToStats(wl.id);
+        });
+      },
+      () => setViewerDataLoading(false)
+    );
 
     return () => {
       unsubParent();

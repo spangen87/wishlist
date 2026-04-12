@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
   const data = wishlistSnap.data()!;
   const isOwner = data.childUid === decoded.uid;
   const isViewer = Array.isArray(data.viewerUids) && data.viewerUids.includes(decoded.uid);
-  if (!isOwner && !isViewer) {
+  const isParent = Array.isArray(data.parentUids) && data.parentUids.includes(decoded.uid);
+  if (!isOwner && !isViewer && !isParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
