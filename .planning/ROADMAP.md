@@ -29,6 +29,7 @@ Full phase details archived in `.planning/milestones/v1.0-ROADMAP.md`
 | 4. Viewer Flow | v1.0 | 5/5 | Complete | 2026-04-09 |
 | 5. PWA + Polish | v1.0 | 3/3 | Complete | 2026-04-10 |
 | 6. Parent Administration | v1.1 | 0/4 | Planned | — |
+| 7. Delete Wishlist + Account Deletion + Cascade Cleanup | v1.1 | 0/3 | Planned | — |
 
 ### Phase 1: Onboarding flow, child account creation, and Swedish localization
 
@@ -54,3 +55,15 @@ Plans:
 - [ ] 06-02-PLAN.md — create-for-parent invite route + redeem route parent branch (Wave 2, parallel with 06-03)
 - [ ] 06-03-PLAN.md — subscribeToParentWishlists + two-section dashboard + ParentWishlistDashboardCard (Wave 2, parallel with 06-02)
 - [ ] 06-04-PLAN.md — add-item API + update-title fix + viewer page parent controls + settings page (Wave 3)
+
+### Phase 7: Delete Wishlist + Account Deletion + Cascade Data Cleanup
+
+**Goal:** Parent can cascade-delete a child's wishlist (all subcollections removed). Parent can delete a child account (Auth + all Firestore data). User can delete their own account (Auth + Firestore). Orphaned Firestore data from users previously deleted from Auth Console is cleaned up via a one-time admin script. No username or email remains blocked after account deletion.
+**Requirements**: DEL-01, DEL-02, DEL-03, DEL-04, DEL-05
+**Depends on:** Phase 6
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — DELETE /api/wishlist/[wishlistId] (cascade) + DELETE /api/auth/user/[uid] (account + data) (Wave 1)
+- [ ] 07-02-PLAN.md — scripts/purge-orphans.ts (one-time orphan cleanup script) (Wave 1, parallel)
+- [ ] 07-03-PLAN.md — DangerZone UI on settings page + self-delete on dashboard + human checkpoint (Wave 2)
