@@ -118,6 +118,28 @@ export default function DashboardPage() {
     router.push('/login');
   }
 
+  async function handleDeleteSelf() {
+    if (
+      !window.confirm(
+        'Är du säker på att du vill ta bort ditt konto? All din data raderas permanent och kan inte återställas.'
+      )
+    )
+      return;
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/auth/user/${user!.uid}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) throw new Error();
+      await signOut(auth);
+      router.push('/login');
+    } catch {
+      // Silent fail — could add toast in future phase
+    }
+  }
+
   const dataLoading = parentDataLoading || viewerDataLoading;
 
   if (loading || dataLoading) {
@@ -136,12 +158,22 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-[#171717]">Mina önskelistor</h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
-          >
-            Logga ut
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleLogout}
+              className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
+            >
+              Logga ut
+            </button>
+            {role !== 'child' && (
+              <button
+                onClick={handleDeleteSelf}
+                className="text-sm text-[#DC2626] hover:underline"
+              >
+                Ta bort mitt konto
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Section 1: Mina barn */}

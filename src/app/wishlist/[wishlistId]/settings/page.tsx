@@ -100,6 +100,93 @@ function CoParentInviteSection({
   );
 }
 
+function DangerZone({ wishlistId, childUid }: { wishlistId: string; childUid: string }) {
+  const router = useRouter();
+  const [deletingList, setDeletingList] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDeleteWishlist() {
+    if (
+      !window.confirm(
+        'Är du säker på att du vill ta bort önskelistan? Alla önskningar och all köpinformation raderas permanent.'
+      )
+    )
+      return;
+    setDeletingList(true);
+    setError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/wishlist/${wishlistId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) throw new Error();
+      router.push('/dashboard');
+    } catch {
+      setError('Något gick fel. Försök igen.');
+    } finally {
+      setDeletingList(false);
+    }
+  }
+
+  async function handleDeleteChildAccount() {
+    if (
+      !window.confirm(
+        'Är du säker på att du vill ta bort barnkontot? Kontot, önskelistan och all data raderas permanent och kan inte återställas.'
+      )
+    )
+      return;
+    setDeletingAccount(true);
+    setError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/auth/user/${childUid}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) throw new Error();
+      router.push('/dashboard');
+    } catch {
+      setError('Något gick fel. Försök igen.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
+  return (
+    <section className="bg-[#FFF5F5] border border-[#FECACA] rounded-2xl p-6 mt-6">
+      <h2 className="text-xl font-semibold text-[#171717]">Fara</h2>
+      <p className="mt-1 text-sm text-[#6B7280]">
+        Dessa åtgärder är permanenta och kan inte ångras.
+      </p>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-[#DC2626]">
+          {error}
+        </p>
+      )}
+      <div className="mt-4 flex flex-col gap-3">
+        <button
+          onClick={handleDeleteWishlist}
+          disabled={deletingList || deletingAccount}
+          className="bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 w-full sm:w-auto"
+        >
+          {deletingList ? 'Tar bort…' : 'Ta bort önskelistan'}
+        </button>
+        <button
+          onClick={handleDeleteChildAccount}
+          disabled={deletingList || deletingAccount}
+          className="bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 w-full sm:w-auto"
+        >
+          {deletingAccount ? 'Tar bort…' : 'Ta bort barnkonto'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function WishlistSettingsPage({
   params,
 }: {
@@ -198,6 +285,9 @@ export default function WishlistSettingsPage({
 
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
+        {accessType === 'parent' && (
+          <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
+        )}
       </div>
     </main>
   );
