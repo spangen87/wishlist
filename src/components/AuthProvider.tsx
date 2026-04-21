@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onIdTokenChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 
 interface AuthContextValue {
@@ -21,7 +21,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // onIdTokenChanged fires on sign-in, sign-out, AND token refreshes (getIdToken(true)).
+    // This ensures role is always current after invite redemption or claim changes.
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Read role from ID token custom claims
         const idTokenResult = await firebaseUser.getIdTokenResult();
