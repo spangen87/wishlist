@@ -77,11 +77,9 @@ export default function DashboardPage() {
 
     const unsubParent = subscribeToParentWishlists(
       user.uid,
-      (newLists, fromCache) => {
+      (newLists) => {
         setParentWishlists(newLists);
-        if (!fromCache || newLists.length > 0) {
-          setParentDataLoading(false);
-        }
+        setParentDataLoading(false);
         newLists.forEach((wl) => {
           fetchChildName(wl.childUid);
           subscribeToStats(wl.id);
@@ -92,11 +90,9 @@ export default function DashboardPage() {
 
     const unsubViewer = subscribeToViewerWishlists(
       user.uid,
-      (newLists, fromCache) => {
+      (newLists) => {
         setViewerWishlists(newLists);
-        if (!fromCache || newLists.length > 0) {
-          setViewerDataLoading(false);
-        }
+        setViewerDataLoading(false);
         newLists.forEach((wl) => {
           fetchChildName(wl.childUid);
           subscribeToStats(wl.id);
