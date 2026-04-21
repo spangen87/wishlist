@@ -1,18 +1,20 @@
 'use client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onIdTokenChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 
 interface AuthContextValue {
   user: User | null;
   role: string | null;
   loading: boolean;
+  refreshRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   role: null,
   loading: true,
+  refreshRole: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -21,11 +23,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onIdTokenChanged fires on sign-in, sign-out, AND token refreshes (getIdToken(true)).
-    // This ensures role is always current after invite redemption or claim changes.
-    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Read role from ID token custom claims
         const idTokenResult = await firebaseUser.getIdTokenResult();
         setRole((idTokenResult.claims['role'] as string) ?? null);
         setUser(firebaseUser);
@@ -38,8 +37,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  // Call this after getIdToken(true) to sync the new claim into context without
+  // triggering a full auth-state re-evaluation or risking concurrent handler races.
+  async function refreshRole() {
+    if (!auth.currentUser) return;
+    const result = await auth.currentUser.getIdTokenResult();
+    setRole((result.claims['role'] as string) ?? null);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, refreshRole }}>
       {children}
     </AuthContext.Provider>
   );
