@@ -124,7 +124,7 @@ export default function InvitePage({
 }) {
   const { token } = use(params);
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, refreshRole } = useAuth();
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -177,9 +177,10 @@ export default function InvitePage({
         return;
       }
 
-      // Force-refresh token so new viewer claim is available to Firestore rules
-      // Pattern from register/page.tsx
+      // Force-refresh token so new claim is available to Firestore rules, then
+      // sync the updated role into AuthProvider context via refreshRole().
       await auth.currentUser?.getIdToken(/* forceRefresh = */ true);
+      await refreshRole();
       router.push(`/viewer/${data.wishlistId}`);
     } catch {
       setPageState('error');
