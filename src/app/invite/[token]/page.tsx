@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   signInWithEmailAndPassword,
@@ -50,11 +50,14 @@ function InlineAuthForm({
       }
       onSuccess();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Något gick fel. Försök igen.';
+      // Firebase v9+ uses err.code (e.g. "auth/invalid-credential") not err.message substrings.
+      const code = (err as { code?: string }).code ?? '';
       setError(
-        msg.includes('wrong-password') || msg.includes('user-not-found')
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found'
           ? 'Fel e-post eller lösenord.'
-          : msg.includes('email-already-in-use')
+          : code === 'auth/email-already-in-use'
           ? 'Det finns redan ett konto med den e-postadressen.'
           : 'Något gick fel. Försök igen.'
       );
@@ -125,12 +128,20 @@ export default function InvitePage({
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  // Guard: only let useEffect trigger redeemToken on the initial auth state resolution.
+  // If auth happens via the inline form (login or register), handleAuthSuccess calls
+  // redeemToken explicitly instead — preventing a race where onIdTokenChanged fires
+  // mid-form and triggers redemption before set-viewer-claim has completed.
+  const initialAuthCheckedRef = useRef(false);
 
   // After auth state resolves, determine what to show
   useEffect(() => {
     if (loading) return;
+    if (initialAuthCheckedRef.current) return;
+    initialAuthCheckedRef.current = true;
+
     if (user) {
-      // User is logged in — attempt redemption immediately
+      // User was already logged in when the page loaded — attempt redemption immediately
       setPageState('joining');
       redeemToken();
     } else {
@@ -176,8 +187,11 @@ export default function InvitePage({
   }
 
   function handleAuthSuccess() {
-    // After login/register, user state updates → useEffect fires → redeemToken()
-    // No explicit action needed here; the useEffect dependency on `user` handles it
+    // Called after the inline form completes login or registration (including set-viewer-claim).
+    // We drive redemption explicitly here instead of relying on useEffect, which is guarded
+    // to only run once on initial load to avoid a race with set-viewer-claim.
+    setPageState('joining');
+    redeemToken();
   }
 
   if (pageState === 'loading' || loading || pageState === 'joining') {

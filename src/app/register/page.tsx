@@ -31,6 +31,10 @@ export default function RegisterPage() {
       });
 
       if (!response.ok) {
+        // Roll back: delete the Auth account so the user can retry with the same email.
+        // Without this, a failed claim-set leaves an orphaned account with no role,
+        // and the next attempt fails with "email-already-in-use".
+        await credential.user.delete().catch(() => {});
         setError('Registreringen misslyckades, försök igen');
         return;
       }
