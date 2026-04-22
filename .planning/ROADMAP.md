@@ -28,7 +28,9 @@ Full phase details archived in `.planning/milestones/v1.0-ROADMAP.md`
 | 3. Child Wishlist | v1.0 | 3/3 | Complete | 2026-04-09 |
 | 4. Viewer Flow | v1.0 | 5/5 | Complete | 2026-04-09 |
 | 5. PWA + Polish | v1.0 | 3/3 | Complete | 2026-04-10 |
-| 6. Parent Administration | v1.1 | 0/4 | Planned | — |
+| 6. Parent Administration | v1.1 | 4/4 | Complete | 2026-04-15 |
+| 7. Delete Wishlist & Account | v1.1 | 3/3 | Complete | 2026-04-15 |
+| 8. Security, Auth & Account Fixes | v1.2 | 0/4 | Planned | — |
 
 ### Phase 1: Onboarding flow, child account creation, and Swedish localization
 
@@ -54,3 +56,16 @@ Plans:
 - [ ] 06-02-PLAN.md — create-for-parent invite route + redeem route parent branch (Wave 2, parallel with 06-03)
 - [ ] 06-03-PLAN.md — subscribeToParentWishlists + two-section dashboard + ParentWishlistDashboardCard (Wave 2, parallel with 06-02)
 - [ ] 06-04-PLAN.md — add-item API + update-title fix + viewer page parent controls + settings page (Wave 3)
+
+### Phase 8: Security, Auth & Account Fixes — patch CONCERNS.md issues, fix child account visibility for creating parent, remove offline mode
+
+**Goal:** All critical and high-severity issues from CONCERNS.md are resolved. Firestore rules are tightened, stored XSS via productUrl/imageUrl is blocked, the test page is deleted, the offline directory is removed, dead code is cleaned up, Firestore listener leaks are fixed, the position-string fallback uses fractional-indexing, and child accounts created by a parent are visible on the parent's dashboard.
+**Requirements**: SEC-01, SEC-02, SEC-03, PERF-01, PERF-03, DEBT-01, DEBT-02, DEBT-04, DEBT-07, BUG-01
+**Depends on:** Phase 6, Phase 7
+**Plans:** 4 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Firestore rules tightening (SEC-01, purchaseStatus) + security headers (SEC-03) + getOrCreateWishlist fix (DEBT-07) (Wave 1)
+- [ ] 08-02-PLAN.md — XSS URL validation: add-item route + wishlist.ts client path + card render guards (SEC-02) (Wave 1, parallel with 08-01)
+- [ ] 08-03-PLAN.md — BUG-01 token fix + PERF-01 listener leak + PERF-03 fractional position + PERF-04 activity pagination (Wave 2)
+- [ ] 08-04-PLAN.md — Cleanup: delete test page + offline dir + dead code + emulator guard + stale tests (DEBT-01, DEBT-02, DEBT-04) (Wave 2, parallel with 08-03)
