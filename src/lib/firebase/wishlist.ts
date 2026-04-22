@@ -15,6 +15,7 @@ export async function getOrCreateWishlist(childUid: string): Promise<string> {
     await setDoc(ref, {
       childUid,
       viewerUids: [],
+      parentUids: [],
       createdAt: serverTimestamp(),
     }, { merge: true });
   }
