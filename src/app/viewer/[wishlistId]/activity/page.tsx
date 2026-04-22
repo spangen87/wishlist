@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { doc, getDoc, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { subscribeToActivityLog } from '@/lib/firebase/viewer';
+import { subscribeToActivityLog, getActivityLogPage } from '@/lib/firebase/viewer';
 import { ActivityLogEntry } from '@/components/viewer/ActivityLogEntry';
 import type { ActivityLogDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -58,16 +58,13 @@ export default function ActivityLogPage({
     return () => unsub();
   }, [loading, user, wishlistId, fetchDisplayName]);
 
-  function loadMore() {
+  async function loadMore() {
     if (!lastDoc) return;
-    // Subscribe with pagination cursor — appends to existing entries
-    const unsub = subscribeToActivityLog(wishlistId, (moreEntries, newLastDoc) => {
-      setEntries((prev) => [...prev, ...moreEntries]);
-      setLastDoc(newLastDoc);
-      setHasMore(moreEntries.length === 50);
-      moreEntries.forEach((e) => fetchDisplayName(e.viewerUid));
-      unsub(); // One-shot pagination load
-    }, lastDoc);
+    const { entries: moreEntries, lastDoc: newLastDoc } = await getActivityLogPage(wishlistId, lastDoc);
+    setEntries((prev) => [...prev, ...moreEntries]);
+    setLastDoc(newLastDoc);
+    setHasMore(moreEntries.length === 50);
+    moreEntries.forEach((e) => fetchDisplayName(e.viewerUid));
   }
 
   if (loading || dataLoading) {

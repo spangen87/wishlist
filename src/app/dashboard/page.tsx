@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [parentDataLoading, setParentDataLoading] = useState(true);
   const [viewerDataLoading, setViewerDataLoading] = useState(true);
   const fetchedNamesRef = useRef(new Set<string>());
+  const statsUnsubsRef = useRef(new Map<string, () => void>());
 
   // Auth + role redirects
   useEffect(() => {
@@ -75,6 +76,12 @@ export default function DashboardPage() {
   useEffect(() => {
     if (loading || !user) return;
 
+    function subscribeToStatsTracked(wishlistId: string) {
+      if (statsUnsubsRef.current.has(wishlistId)) return;
+      const unsub = subscribeToStats(wishlistId);
+      statsUnsubsRef.current.set(wishlistId, unsub);
+    }
+
     const unsubParent = subscribeToParentWishlists(
       user.uid,
       (newLists) => {
@@ -82,7 +89,7 @@ export default function DashboardPage() {
         setParentDataLoading(false);
         newLists.forEach((wl) => {
           fetchChildName(wl.childUid);
-          subscribeToStats(wl.id);
+          subscribeToStatsTracked(wl.id);
         });
       },
       () => setParentDataLoading(false)
@@ -95,7 +102,7 @@ export default function DashboardPage() {
         setViewerDataLoading(false);
         newLists.forEach((wl) => {
           fetchChildName(wl.childUid);
-          subscribeToStats(wl.id);
+          subscribeToStatsTracked(wl.id);
         });
       },
       () => setViewerDataLoading(false)
@@ -104,6 +111,8 @@ export default function DashboardPage() {
     return () => {
       unsubParent();
       unsubViewer();
+      statsUnsubsRef.current.forEach((unsub) => unsub());
+      statsUnsubsRef.current.clear();
     };
   // fetchChildName and subscribeToStats are stable via useCallback — intentionally omitted
   // eslint-disable-next-line react-hooks/exhaustive-deps
