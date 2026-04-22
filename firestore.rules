@@ -37,7 +37,10 @@ service cloud.firestore {
         request.auth.uid in resource.data.viewerUids ||
         request.auth.uid in resource.data.parentUids
       );
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.auth.uid == request.resource.data.childUid
+        && request.resource.data.viewerUids == []
+        && request.resource.data.parentUids == [];
       allow update, delete: if isOwner(wishlistId);
 
       // Items subcollection — child-readable AND child-writable (D-02)
@@ -51,7 +54,10 @@ service cloud.firestore {
       // This is the irreversible privacy boundary. Child UID is NOT in viewerUids or parentUids.
       // Do NOT add any rule that allows childUid to read this subcollection.
       match /purchaseStatus/{itemId} {
-        allow read, write: if isViewer(wishlistId) || isParent(wishlistId);
+        allow read: if isViewer(wishlistId) || isParent(wishlistId);
+        allow write: if (isViewer(wishlistId) || isParent(wishlistId))
+          && (request.resource.data.purchasedBy == request.auth.uid
+              || request.resource.data.purchasedBy == null);
       }
 
       // Activity log subcollection — viewers AND parents can read, written via Admin SDK only (D-18)

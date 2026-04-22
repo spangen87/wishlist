@@ -1,10 +1,10 @@
 'use client';
-import { use, useEffect, useState, useCallback } from 'react';
+import { use, useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { subscribeToActivityLog } from '@/lib/firebase/viewer';
+import { subscribeToActivityLog, getActivityLogPage } from '@/lib/firebase/viewer';
 import { ActivityLogEntry } from '@/components/viewer/ActivityLogEntry';
 import type { ActivityLogDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -23,6 +23,7 @@ export default function ActivityLogPage({
   const [displayNames, setDisplayNames] = useState<Map<string, string>>(new Map());
   const [dataLoading, setDataLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
+  const fetchedNamesRef = useRef(new Set<string>());
 
   // Auth guards
   useEffect(() => {
@@ -30,8 +31,10 @@ export default function ActivityLogPage({
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
+  // fetchDisplayName uses a stable ref for deduplication — no state in deps
   const fetchDisplayName = useCallback(async (uid: string) => {
-    if (displayNames.has(uid)) return;
+    if (fetchedNamesRef.current.has(uid)) return;
+    fetchedNamesRef.current.add(uid);
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
@@ -42,7 +45,7 @@ export default function ActivityLogPage({
     } catch {
       // silent fail — fallback to uid
     }
-  }, [displayNames]);
+  }, []); // no deps — uses ref, not state
 
   useEffect(() => {
     if (loading || !user) return;
@@ -56,18 +59,17 @@ export default function ActivityLogPage({
     });
 
     return () => unsub();
-  }, [loading, user, wishlistId, fetchDisplayName]);
+  // fetchDisplayName is stable via useCallback — intentionally omitted
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, wishlistId]);
 
-  function loadMore() {
+  async function loadMore() {
     if (!lastDoc) return;
-    // Subscribe with pagination cursor — appends to existing entries
-    const unsub = subscribeToActivityLog(wishlistId, (moreEntries, newLastDoc) => {
-      setEntries((prev) => [...prev, ...moreEntries]);
-      setLastDoc(newLastDoc);
-      setHasMore(moreEntries.length === 50);
-      moreEntries.forEach((e) => fetchDisplayName(e.viewerUid));
-      unsub(); // One-shot pagination load
-    }, lastDoc);
+    const { entries: moreEntries, lastDoc: newLastDoc } = await getActivityLogPage(wishlistId, lastDoc);
+    setEntries((prev) => [...prev, ...moreEntries]);
+    setLastDoc(newLastDoc);
+    setHasMore(moreEntries.length === 50);
+    moreEntries.forEach((e) => fetchDisplayName(e.viewerUid));
   }
 
   if (loading || dataLoading) {

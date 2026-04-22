@@ -85,4 +85,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after v1.0 milestone*
+*Last updated: 2026-04-22 after Phase 8 — Security, Auth & Account Fixes*
+
+**Phase 8 complete:** Tightened Firestore security rules (SEC-01/SEC-02/SEC-03), fixed BUG-01 child visibility regression, resolved PERF-01 listener leak and PERF-03 position corruption, removed dead code and debug pages.

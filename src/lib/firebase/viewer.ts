@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, limit, startAfter,
-  onSnapshot, type QueryDocumentSnapshot
+  onSnapshot, getDocs, type QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import type { WishlistDoc, PurchaseStatusDoc, ActivityLogDoc } from '@/types/firestore';
@@ -92,4 +92,32 @@ export function subscribeToActivityLog(
     const last = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
     onEntries(entries, last);
   });
+}
+
+// PERF-04: one-shot paginated read for loadMore — avoids onSnapshot+unsub race condition.
+export async function getActivityLogPage(
+  wishlistId: string,
+  afterDoc: QueryDocumentSnapshot | null,
+  pageSize = 50
+): Promise<{ entries: ActivityLogDoc[]; lastDoc: QueryDocumentSnapshot | null }> {
+  let q = query(
+    collection(db, 'wishlists', wishlistId, 'activityLog'),
+    orderBy('timestamp', 'desc'),
+    limit(pageSize)
+  );
+  if (afterDoc) {
+    q = query(
+      collection(db, 'wishlists', wishlistId, 'activityLog'),
+      orderBy('timestamp', 'desc'),
+      startAfter(afterDoc),
+      limit(pageSize)
+    );
+  }
+  const snap = await getDocs(q);
+  const entries = snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data() as Omit<ActivityLogDoc, 'id'>,
+  })) as ActivityLogDoc[];
+  const last = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+  return { entries, lastDoc: last };
 }
