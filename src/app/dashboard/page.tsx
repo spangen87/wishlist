@@ -130,8 +130,14 @@ export default function DashboardPage() {
       )
     )
       return;
+    let idToken: string | undefined;
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      idToken = await auth.currentUser?.getIdToken(true);
+    } catch {
+      alert('Sessionen har gått ut. Logga ut och logga in igen.');
+      return;
+    }
+    try {
       const res = await fetch(`/api/auth/user/${user!.uid}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -141,7 +147,7 @@ export default function DashboardPage() {
       await signOut(auth);
       router.push('/login');
     } catch {
-      // Silent fail — could add toast in future phase
+      alert('Det gick inte att ta bort kontot. Försök igen.');
     }
   }
 
