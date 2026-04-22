@@ -1,6 +1,6 @@
 import {
   doc, setDoc, getDoc, collection, query, orderBy,
-  onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp
+  onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, deleteField
 } from 'firebase/firestore';
 import { generateKeyBetween } from 'fractional-indexing';
 import { db } from '@/lib/firebase/client';
@@ -74,7 +74,14 @@ export async function updateWishItem(
   if (changes.imageUrl && !SAFE_URL_PREFIXES.some(p => changes.imageUrl!.startsWith(p))) {
     throw new Error('imageUrl must start with https:// or http://');
   }
-  await updateDoc(doc(db, 'wishlists', wishlistId, 'items', itemId), changes);
+  // Convert undefined values to deleteField() so clearing a field actually persists.
+  // Without this, Firestore JS SDK silently drops undefined keys and the existing
+  // field value is preserved — the opposite of what the caller intends.
+  const firestoreChanges: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(changes)) {
+    firestoreChanges[k] = v === undefined ? deleteField() : v;
+  }
+  await updateDoc(doc(db, 'wishlists', wishlistId, 'items', itemId), firestoreChanges);
 }
 
 // Delete item.
