@@ -65,7 +65,7 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Firestore rules tightening (SEC-01, purchaseStatus) + security headers (SEC-03) + getOrCreateWishlist fix (DEBT-07) (Wave 1)
-- [ ] 08-02-PLAN.md — XSS URL validation: add-item route + wishlist.ts client path + card render guards (SEC-02) (Wave 1, parallel with 08-01)
-- [ ] 08-03-PLAN.md — BUG-01 token fix + PERF-01 listener leak + PERF-03 fractional position + PERF-04 activity pagination (Wave 2)
-- [ ] 08-04-PLAN.md — Cleanup: delete test page + offline dir + dead code + emulator guard + stale tests (DEBT-01, DEBT-02, DEBT-04) (Wave 2, parallel with 08-03)
+- [x] 08-01-PLAN.md — Firestore rules tightening (SEC-01, purchaseStatus) + security headers (SEC-03) + getOrCreateWishlist fix (DEBT-07) (Wave 1)
+- [x] 08-02-PLAN.md — XSS URL validation: add-item route + wishlist.ts client path + card render guards (SEC-02) (Wave 1, parallel with 08-01)
+- [x] 08-03-PLAN.md — BUG-01 token fix + PERF-01 listener leak + PERF-03 fractional position + PERF-04 activity pagination (Wave 2)
+- [x] 08-04-PLAN.md — Cleanup: delete test page + offline dir + dead code + emulator guard + stale tests (DEBT-01, DEBT-02, DEBT-04) (Wave 2, parallel with 08-03)
