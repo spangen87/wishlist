@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     viewerIdToken?: string;
   };
 
-  if (!username || !password || !displayName) {
+  if (!username || !password || !displayName || !viewerIdToken) {
     return NextResponse.json(
-      { error: 'username, password, and displayName required' },
+      { error: 'username, password, displayName, and viewerIdToken required' },
       { status: 400 },
     );
   }
@@ -94,10 +94,11 @@ export async function POST(request: NextRequest) {
   let parentUids: string[] = [];
   if (viewerIdToken) {
     try {
-      const decoded = await adminAuth.verifyIdToken(viewerIdToken);
+      // checkRevoked:false avoids a Firestore roundtrip and tolerates slight clock skew
+      const decoded = await adminAuth.verifyIdToken(viewerIdToken, false);
       parentUids = [decoded.uid];
-    } catch {
-      // Invalid token — proceed without parent (non-fatal)
+    } catch (err) {
+      console.error('[register-child] verifyIdToken failed — parentUids will be empty:', err);
     }
   }
   batch.set(adminDb.collection('wishlists').doc(userRecord.uid), {

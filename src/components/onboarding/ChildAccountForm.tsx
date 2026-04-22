@@ -39,9 +39,14 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
 
     setLoading(true);
     try {
-      let viewerIdToken: string | undefined;
+      if (!auth.currentUser) {
+        setError('Sessionen har gått ut. Logga ut och logga in igen, sedan försök skapa barnkontot.');
+        setLoading(false);
+        return;
+      }
+      let viewerIdToken: string;
       try {
-        viewerIdToken = await auth.currentUser?.getIdToken(true);
+        viewerIdToken = await auth.currentUser.getIdToken(true);
       } catch {
         setError('Sessionen har gått ut. Logga ut och logga in igen, sedan försök skapa barnkontot.');
         setLoading(false);
@@ -55,7 +60,7 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
           password,
           displayName: displayName.trim(),
           age: ageNum,
-          ...(viewerIdToken ? { viewerIdToken } : {}),
+          viewerIdToken,
         }),
       });
       if (res.status === 409) {
