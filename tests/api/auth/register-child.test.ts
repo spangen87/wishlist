@@ -37,9 +37,12 @@ const mockAdminDb = {
 const mockCreateUser = jest.fn();
 const mockSetCustomUserClaims = jest.fn();
 
+const mockVerifyIdToken = jest.fn();
+
 const mockAdminAuth = {
   createUser: mockCreateUser,
   setCustomUserClaims: mockSetCustomUserClaims,
+  verifyIdToken: mockVerifyIdToken,
 };
 
 jest.mock('@/lib/firebase/admin', () => ({
@@ -94,22 +97,33 @@ describe('POST /api/auth/register-child', () => {
     mockBatchSet.mockReturnValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
     mockDocDelete.mockResolvedValue(undefined);
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-parent' });
   });
 
+  const validBody = { username: 'alice', password: 'pass123', displayName: 'Alice', age: 10, viewerIdToken: 'tok' };
+
   it('returns 400 when username is missing', async () => {
-    const req = makeRequest({ password: 'pass123' });
+    const req = makeRequest({ password: 'pass123', viewerIdToken: 'tok' });
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username, password, and displayName required');
+    expect(body.error).toBe('username, password, displayName, and viewerIdToken required');
   });
 
   it('returns 400 when password is missing', async () => {
-    const req = makeRequest({ username: 'alice' });
+    const req = makeRequest({ username: 'alice', viewerIdToken: 'tok' });
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username, password, and displayName required');
+    expect(body.error).toBe('username, password, displayName, and viewerIdToken required');
+  });
+
+  it('returns 400 when viewerIdToken is missing', async () => {
+    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('username, password, displayName, and viewerIdToken required');
   });
 
   it('returns 400 when body is empty', async () => {
@@ -117,11 +131,11 @@ describe('POST /api/auth/register-child', () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username, password, and displayName required');
+    expect(body.error).toBe('username, password, displayName, and viewerIdToken required');
   });
 
   it('normalises username to lowercase before creating account', async () => {
-    const req = makeRequest({ username: 'ALICE', password: 'pass123', displayName: 'Alice', age: 10 });
+    const req = makeRequest({ ...validBody, username: 'ALICE' });
     await POST(req);
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'alice@wishlist.internal' }),
@@ -129,7 +143,7 @@ describe('POST /api/auth/register-child', () => {
   });
 
   it('returns 201 with uid on success', async () => {
-    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
+    const req = makeRequest(validBody);
     const res = await POST(req);
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -137,14 +151,24 @@ describe('POST /api/auth/register-child', () => {
   });
 
   it('sets role claim to child after creating user', async () => {
-    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
+    const req = makeRequest(validBody);
     await POST(req);
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('uid-alice', { role: 'child' });
   });
 
+  it('sets parentUids with verified parent uid on success', async () => {
+    const req = makeRequest(validBody);
+    await POST(req);
+    expect(mockVerifyIdToken).toHaveBeenCalledWith('tok', false);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ parentUids: ['uid-parent'] }),
+    );
+  });
+
   it('returns 409 when username is already taken (transaction throws)', async () => {
     mockRunTransaction.mockRejectedValue(new Error('USERNAME_TAKEN'));
-    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
+    const req = makeRequest(validBody);
     const res = await POST(req);
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -153,7 +177,7 @@ describe('POST /api/auth/register-child', () => {
 
   it('returns 409 when Firebase Auth reports email-already-exists', async () => {
     mockCreateUser.mockRejectedValue({ code: 'auth/email-already-exists' });
-    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
+    const req = makeRequest(validBody);
     const res = await POST(req);
     expect(res.status).toBe(409);
     const body = await res.json();
