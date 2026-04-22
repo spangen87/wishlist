@@ -67,8 +67,27 @@ export async function POST(request: NextRequest) {
     position: resolvedPosition,
     createdAt: FieldValue.serverTimestamp(),
   };
-  if (productUrl?.trim()) itemData.productUrl = productUrl.trim();
-  if (imageUrl?.trim()) itemData.imageUrl = imageUrl.trim();
+  const SAFE_URL_PREFIXES = ['https://', 'http://'];
+  if (productUrl?.trim()) {
+    const url = productUrl.trim();
+    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p))) {
+      return NextResponse.json(
+        { error: 'productUrl must start with https:// or http://' },
+        { status: 400 }
+      );
+    }
+    itemData.productUrl = url;
+  }
+  if (imageUrl?.trim()) {
+    const url = imageUrl.trim();
+    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p))) {
+      return NextResponse.json(
+        { error: 'imageUrl must start with https:// or http://' },
+        { status: 400 }
+      );
+    }
+    itemData.imageUrl = url;
+  }
   if (note?.trim()) itemData.note = note.trim();
   if (typeof price === 'number' && !isNaN(price)) itemData.price = price;
 

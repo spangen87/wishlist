@@ -46,6 +46,13 @@ export async function addWishItem(
   fields: { title: string; productUrl?: string; imageUrl?: string; note?: string; price?: number },
   lastPosition: string | null
 ): Promise<void> {
+  const SAFE_URL_PREFIXES = ['https://', 'http://'];
+  if (fields.productUrl && !SAFE_URL_PREFIXES.some(p => fields.productUrl!.startsWith(p))) {
+    throw new Error('productUrl must start with https:// or http://');
+  }
+  if (fields.imageUrl && !SAFE_URL_PREFIXES.some(p => fields.imageUrl!.startsWith(p))) {
+    throw new Error('imageUrl must start with https:// or http://');
+  }
   const position = generateKeyBetween(lastPosition, null);
   await addDoc(collection(db, 'wishlists', wishlistId, 'items'), {
     ...fields,
@@ -60,6 +67,13 @@ export async function updateWishItem(
   itemId: string,
   changes: Partial<Omit<WishItemDoc, 'id' | 'createdAt' | 'position'>>
 ): Promise<void> {
+  const SAFE_URL_PREFIXES = ['https://', 'http://'];
+  if (changes.productUrl && !SAFE_URL_PREFIXES.some(p => changes.productUrl!.startsWith(p))) {
+    throw new Error('productUrl must start with https:// or http://');
+  }
+  if (changes.imageUrl && !SAFE_URL_PREFIXES.some(p => changes.imageUrl!.startsWith(p))) {
+    throw new Error('imageUrl must start with https:// or http://');
+  }
   await updateDoc(doc(db, 'wishlists', wishlistId, 'items', itemId), changes);
 }
 

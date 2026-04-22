@@ -5,6 +5,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { updateWishItem, deleteWishItem } from '@/lib/firebase/wishlist';
 import type { WishItemDoc } from '@/types/firestore';
 
+function isSafeUrl(url: string): boolean {
+  return url.startsWith('https://') || url.startsWith('http://');
+}
+
 interface WishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
@@ -67,10 +71,23 @@ export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
     setEditSaving(true);
     setEditSaveError(null);
     try {
+      const SAFE_URL_PREFIXES = ['https://', 'http://'];
+      const trimmedProductUrl = editProductUrl.trim() || undefined;
+      const trimmedImageUrl = editImageUrl.trim() || undefined;
+      if (trimmedProductUrl && !SAFE_URL_PREFIXES.some(p => trimmedProductUrl.startsWith(p))) {
+        setEditSaveError('Länken måste börja med https:// eller http://');
+        setEditSaving(false);
+        return;
+      }
+      if (trimmedImageUrl && !SAFE_URL_PREFIXES.some(p => trimmedImageUrl.startsWith(p))) {
+        setEditSaveError('Bildlänken måste börja med https:// eller http://');
+        setEditSaving(false);
+        return;
+      }
       const changes: Partial<Omit<WishItemDoc, 'id' | 'createdAt' | 'position'>> = {
         title: editTitle.trim(),
-        productUrl: editProductUrl.trim() || undefined,
-        imageUrl: editImageUrl.trim() || undefined,
+        productUrl: trimmedProductUrl,
+        imageUrl: trimmedImageUrl,
         note: editNote.trim() || undefined,
         price: editPrice !== '' ? Number(editPrice) : undefined,
       };
@@ -228,7 +245,7 @@ export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
             {item.price !== undefined && (
               <span className="text-sm text-gray-500">~{item.price} kr</span>
             )}
-            {item.productUrl && (
+            {item.productUrl && isSafeUrl(item.productUrl) && (
               <a
                 href={item.productUrl}
                 target="_blank"

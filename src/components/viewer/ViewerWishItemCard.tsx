@@ -5,6 +5,10 @@ import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 
+function isSafeUrl(url: string): boolean {
+  return url.startsWith('https://') || url.startsWith('http://');
+}
+
 interface ViewerWishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
@@ -66,7 +70,7 @@ export function ViewerWishItemCard({
           <span className="text-sm text-[#6B7280]">~{item.price} kr</span>
         )}
 
-        {item.productUrl && (
+        {item.productUrl && isSafeUrl(item.productUrl) && (
           <a
             href={item.productUrl}
             target="_blank"
