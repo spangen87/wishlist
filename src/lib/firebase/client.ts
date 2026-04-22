@@ -21,18 +21,13 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
+let emulatorConnected = false;
+
 // Emulator connections — only in local dev when NEXT_PUBLIC_USE_EMULATOR=true
 if (process.env.NEXT_PUBLIC_USE_EMULATOR === 'true') {
-  // connectAuthEmulator and connectFirestoreEmulator are idempotent only if called once.
-  // The HMR guard (getApps check) ensures this file only initialises once per process,
-  // but hot-reload can re-run module-level code. Guard with a flag on the auth object.
-  if (!(auth as unknown as { _emulatorConfig?: unknown })._emulatorConfig) {
+  if (!emulatorConnected) {
+    emulatorConnected = true;
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  }
-  // Firestore emulator: connectFirestoreEmulator throws if called twice on same instance.
-  // Use the internal _settings check pattern.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!(db as any)._settingsFrozen) {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
   }
 }
