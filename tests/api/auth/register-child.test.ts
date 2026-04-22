@@ -101,7 +101,7 @@ describe('POST /api/auth/register-child', () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username and password required');
+    expect(body.error).toBe('username, password, and displayName required');
   });
 
   it('returns 400 when password is missing', async () => {
@@ -109,7 +109,7 @@ describe('POST /api/auth/register-child', () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username and password required');
+    expect(body.error).toBe('username, password, and displayName required');
   });
 
   it('returns 400 when body is empty', async () => {
@@ -117,11 +117,11 @@ describe('POST /api/auth/register-child', () => {
     const res = await POST(req);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toBe('username and password required');
+    expect(body.error).toBe('username, password, and displayName required');
   });
 
   it('normalises username to lowercase before creating account', async () => {
-    const req = makeRequest({ username: 'ALICE', password: 'pass123' });
+    const req = makeRequest({ username: 'ALICE', password: 'pass123', displayName: 'Alice', age: 10 });
     await POST(req);
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'alice@wishlist.internal' }),
@@ -129,7 +129,7 @@ describe('POST /api/auth/register-child', () => {
   });
 
   it('returns 201 with uid on success', async () => {
-    const req = makeRequest({ username: 'alice', password: 'pass123' });
+    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
     const res = await POST(req);
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -137,14 +137,14 @@ describe('POST /api/auth/register-child', () => {
   });
 
   it('sets role claim to child after creating user', async () => {
-    const req = makeRequest({ username: 'alice', password: 'pass123' });
+    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
     await POST(req);
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('uid-alice', { role: 'child' });
   });
 
   it('returns 409 when username is already taken (transaction throws)', async () => {
     mockRunTransaction.mockRejectedValue(new Error('USERNAME_TAKEN'));
-    const req = makeRequest({ username: 'alice', password: 'pass123' });
+    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
     const res = await POST(req);
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -153,7 +153,7 @@ describe('POST /api/auth/register-child', () => {
 
   it('returns 409 when Firebase Auth reports email-already-exists', async () => {
     mockCreateUser.mockRejectedValue({ code: 'auth/email-already-exists' });
-    const req = makeRequest({ username: 'alice', password: 'pass123' });
+    const req = makeRequest({ username: 'alice', password: 'pass123', displayName: 'Alice', age: 10 });
     const res = await POST(req);
     expect(res.status).toBe(409);
     const body = await res.json();

@@ -12,7 +12,6 @@ function isSafeUrl(url: string): boolean {
 interface WishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
-  onEditStart?: () => void; // optional, unused but kept for API compatibility
 }
 
 export function WishItemCard({ item, wishlistId }: WishItemCardProps) {

@@ -98,14 +98,4 @@ export async function updateItemPosition(
   await updateDoc(doc(db, 'wishlists', wishlistId, 'items', itemId), { position });
 }
 
-// Update wishlist title — called from onboarding Step 2 via /api/wishlist/update-title
-// Direct client-side write is blocked by Firestore rules (viewer cannot update wishlist doc).
-// This helper is NOT used directly — kept here for reference. Step 2 calls the API route instead.
-// (If Firestore rules are ever relaxed to allow viewer title writes, this would be the helper.)
-export async function updateWishlistTitle(
-  wishlistId: string,
-  title: string
-): Promise<void> {
-  await updateDoc(doc(db, 'wishlists', wishlistId), { title });
-}
 
