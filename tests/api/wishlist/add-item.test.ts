@@ -43,6 +43,10 @@ jest.mock('@/lib/firebase/admin', () => ({
 
 jest.mock('server-only', () => ({}));
 
+jest.mock('fractional-indexing', () => ({
+  generateKeyBetween: jest.fn(() => 'a1'),
+}));
+
 jest.mock('firebase-admin/firestore', () => ({
   FieldValue: {
     serverTimestamp: jest.fn(() => 'MOCK_TIMESTAMP'),

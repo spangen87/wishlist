@@ -39,7 +39,14 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
 
     setLoading(true);
     try {
-      const viewerIdToken = await auth.currentUser?.getIdToken().catch(() => undefined);
+      let viewerIdToken: string | undefined;
+      try {
+        viewerIdToken = await auth.currentUser?.getIdToken(true);
+      } catch {
+        setError('Sessionen har gått ut. Logga ut och logga in igen, sedan försök skapa barnkontot.');
+        setLoading(false);
+        return;
+      }
       const res = await fetch('/api/auth/register-child', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

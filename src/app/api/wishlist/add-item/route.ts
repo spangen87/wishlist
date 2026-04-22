@@ -2,6 +2,7 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { generateKeyBetween } from 'fractional-indexing';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       .get();
     if (!itemsSnap.empty) {
       // Append after the last item using a simple suffix convention
-      resolvedPosition = itemsSnap.docs[0].data().position + '|z';
+      resolvedPosition = generateKeyBetween(itemsSnap.docs[0].data().position, null);
     } else {
       resolvedPosition = 'a0'; // first item in an empty list
     }
