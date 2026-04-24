@@ -30,6 +30,7 @@ export default function ViewerWishlistPage({
   // Parent-specific state
   const [wishlistTitle, setWishlistTitle] = useState<string>('');
   const [isParent, setIsParent] = useState(false);
+  const [occasion, setOccasion] = useState<{ name: string; date: string } | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -69,6 +70,7 @@ export default function ViewerWishlistPage({
         setRenameValue(wlData.title ?? '');
         const parentUids: string[] = wlData.parentUids ?? [];
         setIsParent(parentUids.includes(user.uid));
+        setOccasion(wlData.occasion ?? null);
       }
     }).catch(() => {
       // Silent — title and parent controls simply won't show
@@ -185,6 +187,30 @@ export default function ViewerWishlistPage({
             Visa aktivitetslogg
           </Link>
         </div>
+
+        {/* Occasion banner — visible to all viewers/parents */}
+        {occasion && (() => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const target = new Date(occasion.date + 'T00:00:00');
+          const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+          const formattedDate = target.toLocaleDateString('sv-SE', {
+            year: 'numeric', month: 'long', day: 'numeric',
+          });
+          return (
+            <div className="mb-5 bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl px-4 py-3 flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-[#F97316]">{occasion.name}</span>
+                <span className="text-sm text-[#6B7280]">{formattedDate}</span>
+              </div>
+              {days >= 0 && days <= 30 && (
+                <span className="text-sm font-semibold text-[#F97316]">
+                  {days === 0 ? 'Idag!' : `Om ${days} ${days === 1 ? 'dag' : 'dagar'}!`}
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Parent-only controls (D-14) — invisible to viewers (D-15) */}
         {isParent && (

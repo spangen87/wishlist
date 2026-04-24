@@ -7,6 +7,102 @@ import { useAuth } from '@/components/AuthProvider';
 import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
 import Link from 'next/link';
 
+function OccasionSection({
+  wishlistId,
+  initialOccasion,
+}: {
+  wishlistId: string;
+  initialOccasion: { name: string; date: string } | null;
+}) {
+  const [name, setName] = useState(initialOccasion?.name ?? '');
+  const [date, setDate] = useState(initialOccasion?.date ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const trimmedName = name.trim();
+    if (!trimmedName && !date) {
+      await persist(null);
+      return;
+    }
+    if (!trimmedName || !date) {
+      setError('Fyll i både tillfälle och datum, eller lämna båda tomma för att ta bort.');
+      return;
+    }
+    await persist({ name: trimmedName, date });
+  }
+
+  async function persist(occasion: { name: string; date: string } | null) {
+    setSaving(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/wishlist/update-occasion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, occasion }),
+      });
+      if (!res.ok) throw new Error();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError('Något gick fel. Försök igen.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-6 mb-6">
+      <h2 className="text-xl font-semibold text-[#171717]">Tillfälle</h2>
+      <p className="mt-1 text-sm text-[#6B7280]">
+        Ange vilket tillfälle önskelistan gäller och när — visas för anhöriga.
+      </p>
+      <form onSubmit={handleSave} className="mt-4 flex flex-col gap-3">
+        <div>
+          <label htmlFor="occasion-name" className="text-sm text-[#6B7280]">Tillfälle</label>
+          <input
+            id="occasion-name"
+            type="text"
+            list="occasion-suggestions"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="t.ex. Födelsedag"
+            className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+          />
+          <datalist id="occasion-suggestions">
+            <option value="Födelsedag" />
+            <option value="Jul" />
+            <option value="Påsk" />
+            <option value="Studentdag" />
+            <option value="Namnsdagen" />
+          </datalist>
+        </div>
+        <div>
+          <label htmlFor="occasion-date" className="text-sm text-[#6B7280]">Datum</label>
+          <input
+            id="occasion-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+          />
+        </div>
+        {error && <p role="alert" className="text-sm text-[#DC2626]">{error}</p>}
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 self-start"
+        >
+          {saving ? 'Sparar…' : saved ? 'Sparat!' : 'Spara tillfälle'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 // Co-förälder invite section — mirrors ShareLinkPanel UX, calls /api/invite/create-for-parent
 function CoParentInviteSection({
   wishlistId,
@@ -201,6 +297,7 @@ export default function WishlistSettingsPage({
   const [dataLoading, setDataLoading] = useState(true);
   const [accessType, setAccessType] = useState<'child' | 'parent' | null>(null);
   const [initialParentToken, setInitialParentToken] = useState<string | null>(null);
+  const [initialOccasion, setInitialOccasion] = useState<{ name: string; date: string } | null>(null);
 
   // Auth guard
   useEffect(() => {
@@ -234,6 +331,9 @@ export default function WishlistSettingsPage({
 
         // Read initial parent invite token for CoParentInviteSection (D-18)
         setInitialParentToken(data.currentParentInviteToken ?? null);
+
+        // Read existing occasion
+        setInitialOccasion(data.occasion ?? null);
 
         // Resolve viewer display names
         const viewerUids: string[] = data.viewerUids ?? [];
@@ -283,6 +383,7 @@ export default function WishlistSettingsPage({
           <h1 className="text-xl font-semibold text-[#171717]">Inställningar</h1>
         </div>
 
+        <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
         {accessType === 'parent' && (

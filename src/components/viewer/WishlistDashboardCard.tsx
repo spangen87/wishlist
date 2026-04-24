@@ -15,6 +15,8 @@ export function WishlistDashboardCard({
   itemCount,
   purchasedCount,
 }: WishlistDashboardCardProps) {
+  const occasion = wishlist.occasion;
+
   return (
     <Link
       href={`/viewer/${wishlist.id}`}
@@ -24,6 +26,16 @@ export function WishlistDashboardCard({
       <h2 className="text-xl font-semibold text-[#171717] leading-tight">
         {childName}
       </h2>
+
+      {/* Occasion */}
+      {occasion && (
+        <p className="mt-1 text-sm text-[#F97316] font-medium">
+          {occasion.name} &middot;{' '}
+          {new Date(occasion.date + 'T00:00:00').toLocaleDateString('sv-SE', {
+            year: 'numeric', month: 'short', day: 'numeric',
+          })}
+        </p>
+      )}
 
       {/* Counts */}
       <p className="mt-2 text-sm text-[#6B7280]">
