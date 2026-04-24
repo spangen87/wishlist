@@ -86,6 +86,7 @@ export default function ViewerWishlistPage({
       // Fetch display names for any new purchasedBy UIDs
       Object.values(newStatuses).forEach((s) => {
         if (s.purchasedBy) fetchDisplayName(s.purchasedBy);
+        if (s.reservedBy) fetchDisplayName(s.reservedBy);
       });
     });
 
@@ -112,6 +113,27 @@ export default function ViewerWishlistPage({
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error ?? 'API error');
+    }
+  }
+
+  async function handleToggleReserved(
+    itemId: string,
+    itemTitle: string,
+    reserve: boolean
+  ) {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+
+    const res = await fetch('/api/viewer/reserve-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, wishlistId, itemId, itemTitle, reserve }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      // Append ' 409' to message so ViewerWishItemCard can detect conflict errors
+      throw new Error((body.error ?? 'API error') + (res.status === 409 ? ' 409' : ''));
     }
   }
 
@@ -303,9 +325,15 @@ export default function ViewerWishlistPage({
                 currentUid={user!.uid}
                 onTogglePurchased={handleTogglePurchased}
                 onUpdateNote={handleUpdateNote}
+                onToggleReserved={handleToggleReserved}
                 purchaserName={
                   statusDoc?.purchasedBy
                     ? displayNames.get(statusDoc.purchasedBy) ?? '...'
+                    : undefined
+                }
+                reserverName={
+                  statusDoc?.reservedBy
+                    ? displayNames.get(statusDoc.reservedBy) ?? '...'
                     : undefined
                 }
                 otherViewerNotes={
