@@ -105,6 +105,7 @@ export default function WishlistPage() {
   if (!user) return null;
 
   const lastPosition = items.length > 0 ? items[items.length - 1].position : null;
+  const totalFavorites = items.filter((i) => i.isFavorite).length;
 
   return (
     <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
@@ -149,6 +150,7 @@ export default function WishlistPage() {
                       key={item.id}
                       item={item}
                       wishlistId={wishlistId!}
+                      totalFavorites={totalFavorites}
                     />
                   ))}
                 </ul>
@@ -159,6 +161,7 @@ export default function WishlistPage() {
                     <WishItemCard
                       item={activeItem}
                       wishlistId={wishlistId!}
+                      totalFavorites={totalFavorites}
                     />
                   </div>
                 ) : null}

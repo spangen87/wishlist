@@ -45,9 +45,13 @@ service cloud.firestore {
 
       // Items subcollection — child-readable AND child-writable (D-02)
       // Viewers can also read items (to show the wishlist to them)
+      // isFavorite is child-only: parent updates are allowed only when isFavorite is not affected (B-02)
       match /items/{itemId} {
         allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId) || isParent(wishlistId));
-        allow write: if isOwner(wishlistId) || isParent(wishlistId);
+        allow create, delete: if isOwner(wishlistId) || isParent(wishlistId);
+        allow update: if isOwner(wishlistId) ||
+          (isParent(wishlistId) &&
+           !resource.data.diff(request.resource.data).affectedKeys().hasAny(['isFavorite']));
       }
 
       // Purchase status subcollection — viewers AND parents can read/write, child CANNOT (D-03)

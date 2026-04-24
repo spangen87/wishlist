@@ -288,39 +288,68 @@ export default function ViewerWishlistPage({
           <p className="text-base text-[#6B7280] text-center py-16">
             Inga önskemål ännu.
           </p>
-        ) : (
-          <ul role="list" className="flex flex-col gap-6">
-            {items.map((item) => (
+        ) : (() => {
+          const favoriteItems = items.filter((i) => i.isFavorite);
+          const otherItems = items.filter((i) => !i.isFavorite);
+
+          function renderCard(item: WishItemDoc) {
+            const statusDoc = statuses[item.id];
+            return (
               <ViewerWishItemCard
                 key={item.id}
                 item={item}
                 wishlistId={wishlistId}
-                status={statuses[item.id]}
-                currentUid={user.uid}
+                status={statusDoc}
+                currentUid={user!.uid}
                 onTogglePurchased={handleTogglePurchased}
                 onUpdateNote={handleUpdateNote}
                 purchaserName={
-                  statuses[item.id]?.purchasedBy
-                    ? displayNames.get(statuses[item.id].purchasedBy!) ?? '...'
+                  statusDoc?.purchasedBy
+                    ? displayNames.get(statusDoc.purchasedBy) ?? '...'
                     : undefined
                 }
                 otherViewerNotes={
-                  (() => {
-                    const statusDoc = statuses[item.id];
-                    if (!statusDoc?.viewerNotes) return [];
-                    return Object.entries(statusDoc.viewerNotes)
-                      .filter(([uid]) => uid !== user.uid)
-                      .map(([uid, note]) => ({
-                        uid,
-                        displayName: displayNames.get(uid) ?? uid,
-                        note,
-                      }));
-                  })()
+                  statusDoc?.viewerNotes
+                    ? Object.entries(statusDoc.viewerNotes)
+                        .filter(([uid]) => uid !== user!.uid)
+                        .map(([uid, note]) => ({
+                          uid,
+                          displayName: displayNames.get(uid) ?? uid,
+                          note,
+                        }))
+                    : []
                 }
               />
-            ))}
-          </ul>
-        )}
+            );
+          }
+
+          return (
+            <>
+              {favoriteItems.length > 0 && (
+                <section className="mb-8">
+                  <h2 className="text-sm font-semibold text-[#F97316] uppercase tracking-wide mb-3">
+                    ★ Favoriter
+                  </h2>
+                  <ul role="list" className="flex flex-col gap-6">
+                    {favoriteItems.map(renderCard)}
+                  </ul>
+                </section>
+              )}
+              {otherItems.length > 0 && (
+                <section>
+                  {favoriteItems.length > 0 && (
+                    <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide mb-3">
+                      Övriga önskemål
+                    </h2>
+                  )}
+                  <ul role="list" className="flex flex-col gap-6">
+                    {otherItems.map(renderCard)}
+                  </ul>
+                </section>
+              )}
+            </>
+          );
+        })()}
       </div>
     </main>
   );
