@@ -36,7 +36,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon-to-text gap within button (`gap-1`) |
 | sm | 8px | Compact inline spacing (`gap-2`) |
-| md | 12px | `mt-3` — vertical gap between reserve button and purchase button (matches existing `mt-3` on purchase button) |
+| md | 12px | `mt-3` — vertical gap between reserve button and purchase button (matches existing `mt-3` on purchase button). **Exception: mirrors existing `mt-3` class in `ViewerWishItemCard` — project-established value, not to be introduced for new layout contexts.** |
 | lg | 16px | `p-4` — card padding (existing) |
 | xl | 24px | `gap-6` — card list gap (existing) |
 | 2xl | 32px | `mb-8` — section spacing (existing) |
@@ -100,7 +100,7 @@ Rationale: Dashed border differentiates "intent" from the solid-border purchase 
 
 ```
 Label:     "Du tänker köpa detta"
-Icon:      Inline SVG calendar/bookmark (16×16) — OR omit icon, label is self-explanatory
+Icon:      No icon — label is self-explanatory
 Classes:   mt-3 flex items-center gap-2 rounded-xl px-4 py-2 font-semibold text-sm
            min-h-[44px] transition-colors border
            bg-[#F97316] hover:bg-[#EA6C0A] border-[#F97316] text-white
