@@ -61,7 +61,12 @@ service cloud.firestore {
         allow read: if isViewer(wishlistId) || isParent(wishlistId);
         allow write: if (isViewer(wishlistId) || isParent(wishlistId))
           && (request.resource.data.purchasedBy == request.auth.uid
-              || request.resource.data.purchasedBy == null);
+              || request.resource.data.purchasedBy == null)
+          && (
+              !('reservedBy' in request.resource.data)
+              || request.resource.data.reservedBy == request.auth.uid
+              || request.resource.data.reservedBy == null
+          );
       }
 
       // Activity log subcollection — viewers AND parents can read, written via Admin SDK only (D-18)
