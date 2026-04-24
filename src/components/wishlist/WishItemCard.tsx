@@ -17,6 +17,7 @@ interface WishItemCardProps {
 export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Edit form state
   const [editTitle, setEditTitle] = useState('');
@@ -261,13 +262,14 @@ export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
 
           {/* Right column: thumbnail + Redigera button — read mode only */}
           <div className="flex-shrink-0 flex flex-col items-end gap-2">
-            {item.imageUrl ? (
+            {item.imageUrl && !imageLoadError ? (
               <img
                 src={item.imageUrl}
                 alt={item.title}
                 width={64}
                 height={64}
                 className="w-16 h-16 rounded-md object-cover"
+                onError={() => setImageLoadError(true)}
               />
             ) : (
               <div className="w-16 h-16 rounded-md bg-[#E5D5CC]" aria-hidden="true" />
