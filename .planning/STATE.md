@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 9 planned — ready to execute
-last_updated: "2026-04-24"
+status: executing
+stopped_at: Completed 09-b-05-reservation-status-jag-t-nker-k-pa-detta-01-PLAN.md
+last_updated: "2026-04-24T21:49:28.662Z"
 last_activity: 2026-04-24
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_plans: 13
+  completed_plans: 12
+  percent: 92
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** Barnet äger sin önskelista och kan enkelt lägga till önskningar; föräldrar och släkt kan koordinera inköp utan att förstöra överraskningen.
-**Current focus:** Phase --phase — 08
+**Current focus:** Phase 09 — b-05-reservation-status-jag-t-nker-k-pa-detta
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
+Phase: 09 (b-05-reservation-status-jag-t-nker-k-pa-detta) — EXECUTING
+Plan: 2 of 2
 Plans: 3/3 complete
-Status: Milestone complete
-Last activity: 2026-04-22
+Status: Ready to execute
+Last activity: 2026-04-24
 
-Progress: [███░░░░░░░] 60%
+Progress: [█████████░] 92%
 
 ## Phase 03 Verification Summary
 
@@ -78,6 +78,7 @@ Run the end-to-end checkpoint from `02-03-PLAN.md` Task 2 to confirm all 5 AUTH 
 
 *Updated after each plan completion*
 | Phase 02 P03 | 10 | 2 tasks | 2 files |
+| Phase 09-b-05-reservation-status-jag-t-nker-k-pa-detta P01 | 2min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 02]: proxy.ts uses export default function proxy (Next.js 16 pattern) — optimistic route protection; real auth gate is AuthProvider useEffect redirect
 - [Phase 02]: Dashboard is a stub for Phase 3 content — shows email and role only; Phase 3 adds wishlist items and drag-and-drop
 - [Phase 02]: proxy.ts is intentionally optimistic (always NextResponse.next()) — T-02-12 accepted; server-side token verification via next-firebase-auth-edge deferred to Phase 5
+- 09-01: Mirrored mark-purchased route pattern verbatim per AGENTS.md directive
+- 09-01: 409 conflict check is pre-batch read, no distributed lock (D-02 accepts eventual consistency)
+- 09-01: Defense-in-depth firestore.rules validates reservedBy == auth.uid (Admin SDK bypasses but protects against direct client writes)
 
 ### Pending Todos
 
@@ -110,6 +114,6 @@ None. Username race condition concern from earlier STATE.md is resolved — atom
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 9 UI-SPEC approved
+Last session: 2026-04-24T21:49:28.659Z
+Stopped at: Completed 09-b-05-reservation-status-jag-t-nker-k-pa-detta-01-PLAN.md
 Resume with: `/gsd-execute-phase 03` (after completing human smoke test)
