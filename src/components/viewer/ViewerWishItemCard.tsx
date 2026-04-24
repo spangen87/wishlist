@@ -32,6 +32,7 @@ export function ViewerWishItemCard({
 }: ViewerWishItemCardProps) {
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const isPurchased = !!status?.purchasedBy;
   const isOwnPurchase = status?.purchasedBy === currentUid;
@@ -132,13 +133,14 @@ export function ViewerWishItemCard({
 
       {/* Right column: thumbnail */}
       <div className="flex-shrink-0">
-        {item.imageUrl ? (
+        {item.imageUrl && !imageLoadError ? (
           <img
             src={item.imageUrl}
             alt={item.title}
             width={64}
             height={64}
             className="w-16 h-16 rounded-md object-cover"
+            onError={() => setImageLoadError(true)}
           />
         ) : (
           <div className="w-16 h-16 rounded-md bg-[#E5D5CC]" aria-hidden="true" />
