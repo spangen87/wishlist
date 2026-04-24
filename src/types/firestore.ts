@@ -36,6 +36,7 @@ export interface PurchaseStatusDoc {
   viewerUids: string[];       // Copied from parent wishlist for rule evaluation
   purchasedBy?: string;       // UID of viewer who marked as purchased
   purchasedAt?: Timestamp;
+  reservedBy?: string;        // UID of viewer who reserved; absent = not reserved (D-05)
   viewerNotes?: Record<string, string>; // Map of viewerUid → note text (D-12, D-15)
 }
 
@@ -44,7 +45,7 @@ export interface PurchaseStatusDoc {
 // Viewers can read; child cannot read (enforced in firestore.rules)
 export interface ActivityLogDoc {
   viewerUid: string;                                          // UID of the viewer who acted
-  action: 'marked_purchased' | 'unmarked_purchased' | 'added_note';
+  action: 'marked_purchased' | 'unmarked_purchased' | 'added_note' | 'reserved' | 'unreserved';
   itemId: string;
   itemTitle: string;
   timestamp: Timestamp;
