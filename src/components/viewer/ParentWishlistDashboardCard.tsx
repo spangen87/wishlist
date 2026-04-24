@@ -15,6 +15,8 @@ export function ParentWishlistDashboardCard({
   itemCount,
   purchasedCount,
 }: ParentWishlistDashboardCardProps) {
+  const occasion = wishlist.occasion;
+
   return (
     <div className="bg-white border border-[#E5D5CC] rounded-2xl p-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
       {/* Parent badge */}
@@ -31,6 +33,16 @@ export function ParentWishlistDashboardCard({
         <h2 className="text-xl font-semibold text-[#171717] leading-tight">
           {childName}
         </h2>
+
+        {/* Occasion */}
+        {occasion && (
+          <p className="mt-1 text-sm text-[#F97316] font-medium">
+            {occasion.name} &middot;{' '}
+            {new Date(occasion.date + 'T00:00:00').toLocaleDateString('sv-SE', {
+              year: 'numeric', month: 'short', day: 'numeric',
+            })}
+          </p>
+        )}
 
         {/* Counts */}
         <p className="mt-2 text-sm text-[#6B7280]">

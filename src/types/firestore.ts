@@ -10,6 +10,10 @@ export interface WishlistDoc {
   title?: string;         // Optional: parent-given wishlist name (e.g. "Elsas önskelista")
   currentInviteToken?: string;          // Active share link token for viewer invites
   currentParentInviteToken?: string;    // Active share link token for parent invites (D-11)
+  occasion?: {
+    name: string;   // e.g. "Födelsedag"
+    date: string;   // ISO 8601 date string, e.g. "2026-05-15"
+  };
 }
 
 // wishlists/{wishlistId}/items/{itemId}
