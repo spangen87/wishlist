@@ -17,7 +17,9 @@ interface ViewerWishItemCardProps {
   // Callbacks — parent fetches idToken and calls API
   onTogglePurchased: (itemId: string, itemTitle: string, purchased: boolean) => Promise<void>;
   onUpdateNote: (itemId: string, itemTitle: string, note: string) => Promise<void>;
+  onToggleReserved: (itemId: string, itemTitle: string, reserve: boolean) => Promise<void>;
   purchaserName?: string; // resolved display name for status.purchasedBy uid (pre-fetched by parent)
+  reserverName?: string;  // resolved display name for status.reservedBy (pre-fetched by parent)
   otherViewerNotes: Array<{ uid: string; displayName: string; note: string }>;
 }
 
@@ -27,16 +29,24 @@ export function ViewerWishItemCard({
   currentUid,
   onTogglePurchased,
   onUpdateNote,
+  onToggleReserved,
   purchaserName,
+  reserverName,
   otherViewerNotes,
 }: ViewerWishItemCardProps) {
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [reserving, setReserving] = useState(false);
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   const isPurchased = !!status?.purchasedBy;
   const isOwnPurchase = status?.purchasedBy === currentUid;
   const isOthersPurchase = isPurchased && !isOwnPurchase;
+
+  const isReserved = !!status?.reservedBy;
+  const isOwnReservation = status?.reservedBy === currentUid;
+  const isOtherReservation = isReserved && !isOwnReservation;
 
   async function handleToggle() {
     if (isOthersPurchase) return; // disabled
@@ -48,6 +58,24 @@ export function ViewerWishItemCard({
       setToggleError('Något gick fel. Försök igen.');
     } finally {
       setToggling(false);
+    }
+  }
+
+  async function handleToggleReserve() {
+    if (isOtherReservation) return;
+    setReserving(true);
+    setReserveError(null);
+    try {
+      await onToggleReserved(item.id, item.title, !isOwnReservation);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('409') || msg.includes('Already reserved')) {
+        setReserveError('Någon annan har redan reserverat detta.');
+      } else {
+        setReserveError('Något gick fel. Försök igen.');
+      }
+    } finally {
+      setReserving(false);
     }
   }
 
@@ -85,6 +113,44 @@ export function ViewerWishItemCard({
         {/* Purchase status badge */}
         {isPurchased && purchaserName && (
           <PurchasedBadge purchaserName={purchaserName} isCurrentUser={isOwnPurchase} />
+        )}
+
+        {/* Reservation badge — shown only when someone else has reserved (D-10) */}
+        {isOtherReservation && reserverName && (
+          <span className="text-sm text-[#6B7280] italic">
+            Reserverad av {reserverName}
+          </span>
+        )}
+
+        {/* Reserve button — hidden when item is purchased (D-14) */}
+        {!isPurchased && (
+          <button
+            onClick={handleToggleReserve}
+            disabled={reserving || isOtherReservation}
+            aria-label={
+              isOtherReservation
+                ? `Reserverad av ${reserverName ?? '...'}`
+                : isOwnReservation
+                ? `Avboka reservation för ${item.title}`
+                : `Reservera ${item.title}`
+            }
+            className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors border ${
+              isOtherReservation
+                ? 'opacity-50 cursor-not-allowed border-[#E5D5CC] bg-white text-[#6B7280]'
+                : isOwnReservation
+                ? 'bg-[#F97316] hover:bg-[#EA6C0A] border-[#F97316] text-white'
+                : 'border-dashed border-[#E5D5CC] bg-white hover:bg-[#FFF0E8] text-[#171717]'
+            } disabled:opacity-50`}
+          >
+            {isOtherReservation
+              ? `Reserverad av ${reserverName ?? '...'}`
+              : isOwnReservation
+              ? 'Du tänker köpa detta'
+              : 'Jag tänker köpa detta'}
+          </button>
+        )}
+        {reserveError && (
+          <p role="alert" className="text-[#DC2626] text-sm mt-1">{reserveError}</p>
         )}
 
         {/* Purchase toggle */}
