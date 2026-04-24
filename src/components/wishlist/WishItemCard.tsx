@@ -12,12 +12,14 @@ function isSafeUrl(url: string): boolean {
 interface WishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
+  totalFavorites: number;
 }
 
-export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
+export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [favoriteError, setFavoriteError] = useState(false);
 
   // Edit form state
   const [editTitle, setEditTitle] = useState('');
@@ -107,6 +109,19 @@ export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
       // item disappears via onSnapshot — no local state cleanup needed
     } catch {
       setEditSaveError('Något gick fel. Försök igen.');
+    }
+  }
+
+  async function handleToggleFavorite() {
+    if (!item.isFavorite && totalFavorites >= 5) {
+      setFavoriteError(true);
+      setTimeout(() => setFavoriteError(false), 3000);
+      return;
+    }
+    try {
+      await updateWishItem(wishlistId, item.id, { isFavorite: !item.isFavorite });
+    } catch {
+      // Silent fail — optimistic UI not used here, onSnapshot corrects state
     }
   }
 
@@ -241,7 +256,19 @@ export function WishItemCard({ item, wishlistId }: WishItemCardProps) {
         <>
           {/* Content area */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold text-[#171717] leading-tight">{item.title}</h2>
+            <div className="flex items-start gap-2">
+              <h2 className="text-xl font-semibold text-[#171717] leading-tight flex-1">{item.title}</h2>
+              <button
+                onClick={handleToggleFavorite}
+                aria-label={item.isFavorite ? `Ta bort ${item.title} från favoriter` : `Markera ${item.title} som favorit`}
+                className="flex-shrink-0 text-xl leading-none text-[#F97316] hover:scale-110 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                {item.isFavorite ? '★' : '☆'}
+              </button>
+            </div>
+            {favoriteError && (
+              <p role="alert" className="text-sm text-[#DC2626] mt-1">Du kan ha max 5 favoriter.</p>
+            )}
             {item.price !== undefined && (
               <span className="text-sm text-gray-500">~{item.price} kr</span>
             )}
