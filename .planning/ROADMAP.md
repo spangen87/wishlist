@@ -69,3 +69,14 @@ Plans:
 - [x] 08-02-PLAN.md — XSS URL validation: add-item route + wishlist.ts client path + card render guards (SEC-02) (Wave 1, parallel with 08-01)
 - [x] 08-03-PLAN.md — BUG-01 token fix + PERF-01 listener leak + PERF-03 fractional position + PERF-04 activity pagination (Wave 2)
 - [x] 08-04-PLAN.md — Cleanup: delete test page + offline dir + dead code + emulator guard + stale tests (DEBT-01, DEBT-02, DEBT-04) (Wave 2, parallel with 08-03)
+
+### Phase 9: B-05: Reservation status — Jag tänker köpa detta
+
+**Goal:** Viewers and parents can signal reservation intent on a wish item ("Jag tänker köpa detta") to prevent double-buying. One reservation per item, first-come-first-served. Reservation lives in the existing purchaseStatus subcollection so the child sees nothing. Reserving and marking as purchased are independent actions; purchasing auto-clears the reservation. Activity log records reserve/unreserve events.
+**Requirements**: D-01 through D-17 (from 09-CONTEXT.md)
+**Depends on:** Phase 8
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Types (reservedBy, action union) + reserve-item API route + mark-purchased D-03 patch + Firestore rules (Wave 1)
+- [ ] 09-02-PLAN.md — ViewerWishItemCard reserve button (3 states + hidden) + page orchestrator wiring + ActivityLogEntry new cases (Wave 2)
