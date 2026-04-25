@@ -18,9 +18,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Only owner can retrieve the invite token
+  // Owner (child) and parents can retrieve the invite token
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
-  if (!wishlistSnap.exists || wishlistSnap.data()!.childUid !== decoded.uid) {
+  if (!wishlistSnap.exists) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const data = wishlistSnap.data()!;
+  const isOwner = data.childUid === decoded.uid;
+  const isParent = Array.isArray(data.parentUids) && data.parentUids.includes(decoded.uid);
+  if (!isOwner && !isParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
