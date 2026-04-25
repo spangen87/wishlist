@@ -52,3 +52,6 @@ next-env.d.ts
 # debug logs
 firebase-debug.log
 firestore-debug.log
+
+# Claude Code local session state (lock files, local settings, worktrees)
+.claude/
