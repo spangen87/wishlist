@@ -20,11 +20,17 @@ export async function POST(request: NextRequest) {
   }
 
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
-  if (!wishlistSnap.exists || wishlistSnap.data()!.childUid !== decoded.uid) {
+  if (!wishlistSnap.exists) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const wishlistData = wishlistSnap.data()!;
+  const isOwner = wishlistData.childUid === decoded.uid;
+  const isParent = Array.isArray(wishlistData.parentUids) && wishlistData.parentUids.includes(decoded.uid);
+  if (!isOwner && !isParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const oldToken: string | undefined = wishlistSnap.data()!.currentInviteToken;
+  const oldToken: string | undefined = wishlistData.currentInviteToken;
   const newToken = randomBytes(24).toString('hex');
 
   const batch = adminDb.batch();
