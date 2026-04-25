@@ -28,6 +28,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Verify the parent's token UP FRONT — fail loudly instead of silently writing
+  // an orphaned child with empty parentUids if the Admin SDK or token is broken.
+  let parentUid: string;
+  try {
+    const decoded = await adminAuth.verifyIdToken(viewerIdToken, false);
+    parentUid = decoded.uid;
+  } catch (err) {
+    console.error('[register-child] verifyIdToken failed:', err);
+    return NextResponse.json({ error: 'Invalid session, please log in again' }, { status: 401 });
+  }
+
   // Normalise: lowercase + trim (per anti-patterns in research)
   const usernameLower = username.trim().toLowerCase();
   const syntheticEmail = `${usernameLower}@wishlist.internal`;
@@ -90,21 +101,12 @@ export async function POST(request: NextRequest) {
     displayName: displayName.trim(),
     age: ageNum,
   });
-  // If the caller provided their idToken, add them as the first parent (D-05)
-  let parentUids: string[] = [];
-  if (viewerIdToken) {
-    try {
-      // checkRevoked:false avoids a Firestore roundtrip and tolerates slight clock skew
-      const decoded = await adminAuth.verifyIdToken(viewerIdToken, false);
-      parentUids = [decoded.uid];
-    } catch (err) {
-      console.error('[register-child] verifyIdToken failed — parentUids will be empty:', err);
-    }
-  }
+  // Add the verified caller as the first parent (D-05). parentUid was decoded
+  // up front, so this is guaranteed non-empty when we reach this point.
   batch.set(adminDb.collection('wishlists').doc(userRecord.uid), {
     childUid: userRecord.uid,
     viewerUids: [],
-    parentUids,
+    parentUids: [parentUid],
     createdAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();
