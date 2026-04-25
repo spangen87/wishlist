@@ -18,6 +18,10 @@ function formatAction(
       return `${viewerName} avmarkerade "${itemTitle}"`;
     case 'added_note':
       return `${viewerName} lämnade en anteckning på "${itemTitle}"`;
+    case 'reserved':
+      return `${viewerName} reserverade "${itemTitle}"`;
+    case 'unreserved':
+      return `${viewerName} avbokade sin reservation på "${itemTitle}"`;
     default:
       return `${viewerName} utförde en åtgärd på "${itemTitle}"`;
   }

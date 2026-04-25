@@ -5,16 +5,16 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const { idToken, wishlistId, itemId, itemTitle, purchased } =
+  const { idToken, wishlistId, itemId, itemTitle, reserve } =
     body as {
       idToken?: string;
       wishlistId?: string;
       itemId?: string;
       itemTitle?: string;
-      purchased?: boolean;
+      reserve?: boolean;
     };
 
-  if (!idToken || !wishlistId || !itemId || itemTitle === undefined || purchased === undefined) {
+  if (!idToken || !wishlistId || !itemId || itemTitle === undefined || reserve === undefined) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   const { uid } = decoded;
 
-  // Verify caller is a viewer on this wishlist
+  // Verify caller is a viewer or parent on this wishlist
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
   if (!wishlistSnap.exists) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
@@ -38,24 +38,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Enforce single reservation per item (D-02): 409 if another user already reserved
+  const existingSnap = await adminDb
+    .collection('wishlists').doc(wishlistId)
+    .collection('purchaseStatus').doc(itemId).get();
+  const existingReservedBy: string | undefined = existingSnap.data()?.reservedBy;
+
+  if (reserve && existingReservedBy && existingReservedBy !== uid) {
+    return NextResponse.json({ error: 'Already reserved by another user' }, { status: 409 });
+  }
+
   const batch = adminDb.batch();
 
   const statusRef = adminDb
     .collection('wishlists').doc(wishlistId)
     .collection('purchaseStatus').doc(itemId);
 
-  if (purchased) {
+  if (reserve) {
     batch.set(statusRef, {
       itemId,
       viewerUids,   // denormalized for rule evaluation
-      purchasedBy: uid,
-      purchasedAt: FieldValue.serverTimestamp(),
-      reservedBy: FieldValue.delete(),  // D-03: auto-clear caller's reservation on purchase
+      reservedBy: uid,
     }, { merge: true });
   } else {
     batch.update(statusRef, {
-      purchasedBy: FieldValue.delete(),
-      purchasedAt: FieldValue.delete(),
+      reservedBy: FieldValue.delete(),
     });
   }
 
@@ -65,7 +72,7 @@ export async function POST(request: NextRequest) {
 
   batch.set(logRef, {
     viewerUid: uid,
-    action: purchased ? 'marked_purchased' : 'unmarked_purchased',
+    action: reserve ? 'reserved' : 'unreserved',
     itemId,
     itemTitle,
     timestamp: FieldValue.serverTimestamp(),
