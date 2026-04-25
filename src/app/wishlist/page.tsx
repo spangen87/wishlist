@@ -213,7 +213,12 @@ export default function WishlistPage() {
         )}
       </div>
 
-      {/* FAB */}
+      {/* FAB — fixed but offset using the dvh-svh delta to clear the iOS
+          browser toolbar. When the URL/tab bar is visible 100svh < 100dvh,
+          and that delta equals the toolbar height (env(safe-area-inset-bottom)
+          returns 0 in that state in both Safari and Chrome iOS, so we can't
+          use it). When the toolbar is collapsed the delta is 0, so we floor
+          to a fixed safe-area offset. */}
       {!showAddForm && !isEmpty && (
         <button
           type="button"
@@ -222,10 +227,8 @@ export default function WishlistPage() {
           className="anim-fab tap-feedback fixed z-20 flex items-center gap-2 font-display font-bold text-[14px]"
           style={{
             right: 'max(18px, env(safe-area-inset-right))',
-            /* iOS Safari URL/tab bar shrinks `100dvh` but `env(safe-area-inset-bottom)`
-               returns 0 while the bar is visible — so a bare `env()` puts the FAB
-               *behind* the toolbar. We bump the offset enough to clear it. */
-            bottom: 'max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px))',
+            bottom:
+              'max(20px, calc(100dvh - 100svh + 20px), calc(env(safe-area-inset-bottom, 0px) + 20px))',
             padding: '14px 22px',
             minHeight: 52,
             borderRadius: 9999,
