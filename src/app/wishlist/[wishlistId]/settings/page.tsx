@@ -8,6 +8,149 @@ import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
 import Link from 'next/link';
 import { LightShell, ArrowLeft, Calendar, UserIcon } from '@/components/galaxy';
 
+function ResetChildPasswordSection({ childUid }: { childUid: string }) {
+  const [open, setOpen] = useState(false);
+  const [pw1, setPw1] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setPw1('');
+    setPw2('');
+    setError(null);
+    setSaved(false);
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSaved(false);
+    if (pw1.length < 6) {
+      setError('Lösenordet måste vara minst 6 tecken.');
+      return;
+    }
+    if (pw1 !== pw2) {
+      setError('Lösenorden matchar inte.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        setError('Sessionen har gått ut. Logga in igen.');
+        return;
+      }
+      const res = await fetch('/api/auth/reset-child-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, childUid, newPassword: pw1 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? 'Något gick fel. Försök igen.');
+        return;
+      }
+      setSaved(true);
+      setPw1('');
+      setPw2('');
+      setTimeout(() => setSaved(false), 4000);
+    } catch {
+      setError('Något gick fel. Försök igen.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="light-card p-5">
+      <div className="flex items-center gap-2">
+        <UserIcon size={16} color="var(--color-accent)" />
+        <h2 className="font-display font-bold text-[16px]">Återställ barnets lösenord</h2>
+      </div>
+      <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+        Sätt ett nytt lösenord om barnet har glömt det. Användarnamnet ändras inte.
+      </p>
+
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="light-cta-outline mt-4"
+        >
+          Sätt nytt lösenord
+        </button>
+      ) : (
+        <form onSubmit={handleSave} className="mt-4 flex flex-col gap-3">
+          <div>
+            <label
+              htmlFor="reset-pw1"
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-muted-light)' }}
+            >
+              Nytt lösenord
+            </label>
+            <input
+              id="reset-pw1"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={pw1}
+              onChange={(e) => setPw1(e.target.value)}
+              className="light-input"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="reset-pw2"
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-muted-light)' }}
+            >
+              Bekräfta nytt lösenord
+            </label>
+            <input
+              id="reset-pw2"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={pw2}
+              onChange={(e) => setPw2(e.target.value)}
+              className="light-input"
+            />
+          </div>
+          {error && (
+            <p role="alert" className="text-[13px]" style={{ color: 'var(--color-destructive)' }}>
+              {error}
+            </p>
+          )}
+          {saved && (
+            <p role="status" className="text-[13px] font-semibold" style={{ color: '#059669' }}>
+              Lösenordet är uppdaterat. Berätta det nya för barnet.
+            </p>
+          )}
+          <div className="flex gap-3 flex-wrap mt-1">
+            <button type="submit" disabled={saving} className="light-cta">
+              {saving ? 'Sparar…' : 'Spara nytt lösenord'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                reset();
+              }}
+              className="px-4 py-3 text-[13px] font-semibold"
+              style={{ color: 'var(--color-muted-light)' }}
+            >
+              Avbryt
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 function OccasionSection({
   wishlistId,
   initialOccasion,
@@ -422,7 +565,10 @@ export default function WishlistSettingsPage({
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
         {accessType === 'parent' && (
-          <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
+          <>
+            <ResetChildPasswordSection childUid={wishlistId} />
+            <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
+          </>
         )}
       </div>
     </LightShell>
