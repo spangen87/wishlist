@@ -67,7 +67,7 @@ export default function LoginPage() {
 
   return (
     <NightShell dense twinkleCount={32} auroraColor="#B28BFF" auroraTop={140} auroraRight="50%">
-      <div className="flex flex-col items-center pt-16 pb-8 px-6 relative">
+      <div className="flex flex-col items-center app-page app-top pb-8 relative" style={{ paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 32px))' }}>
         <div className="relative anim-molly">
           <div
             aria-hidden="true"
@@ -87,7 +87,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="flex-1 px-6 pb-10">
+      <div className="flex-1 app-page app-bottom">
         <div className="mx-auto w-full max-w-sm">
           <form
             onSubmit={handleSubmit}

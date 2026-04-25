@@ -202,7 +202,7 @@ export default function InvitePage({
   if (pageState === 'invalid') {
     return (
       <NightShell twinkleCount={20}>
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 app-page text-center">
           <Molly size={80} mood="sleepy" eyeColor="#0F1330" blushColor="#FF7AB8" />
           <h1 className="font-display text-[24px] font-bold gradient-text">
             Länken är inte längre giltig
@@ -218,7 +218,7 @@ export default function InvitePage({
   if (pageState === 'error') {
     return (
       <NightShell twinkleCount={20}>
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 app-page text-center">
           <Molly size={80} mood="thinking" eyeColor="#0F1330" blushColor="#FF7AB8" />
           <h1 className="font-display text-[24px] font-bold gradient-text">Något gick fel</h1>
           <p role="alert" className="text-[14px] max-w-sm" style={{ color: 'var(--color-muted)' }}>
@@ -241,7 +241,7 @@ export default function InvitePage({
 
   return (
     <NightShell dense twinkleCount={28} auroraColor="#B28BFF" auroraTop={120} auroraRight="50%">
-      <div className="flex-1 flex flex-col items-center px-6 pt-14 pb-10">
+      <div className="flex-1 flex flex-col items-center app-page app-bottom" style={{ paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 32px))' }}>
         <div className="relative anim-molly mb-4">
           <div
             aria-hidden="true"

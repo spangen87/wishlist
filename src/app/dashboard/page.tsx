@@ -167,7 +167,7 @@ export default function DashboardPage() {
     <LightShell>
       {/* Header */}
       <header
-        className="px-5 pt-6 pb-5 flex items-start justify-between gap-3"
+        className="app-page app-top pb-5 flex items-start justify-between gap-3"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <div className="min-w-0">
@@ -192,7 +192,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="px-4 pt-5 pb-12 mx-auto w-full max-w-2xl">
+      <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl">
         {/* Section: Mina barn */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-3 px-1">

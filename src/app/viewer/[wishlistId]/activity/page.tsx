@@ -85,7 +85,7 @@ export default function ActivityLogPage({
   return (
     <LightShell>
       <header
-        className="px-5 pt-6 pb-4"
+        className="app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link
@@ -99,7 +99,7 @@ export default function ActivityLogPage({
         <h1 className="font-display font-bold text-[22px] mt-1.5">Aktivitet</h1>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl pb-12">
+      <div className="mx-auto w-full max-w-2xl app-bottom">
         {entries.length === 0 ? (
           <p
             className="text-center py-16 text-[14px]"

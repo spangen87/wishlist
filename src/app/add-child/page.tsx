@@ -28,7 +28,7 @@ export default function AddChildPage() {
   return (
     <LightShell>
       <header
-        className="flex items-center gap-3 px-5 pt-6 pb-4"
+        className="flex items-center gap-3 app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link
@@ -42,7 +42,7 @@ export default function AddChildPage() {
         <h1 className="font-display font-bold text-[20px]">Lägg till barn</h1>
       </header>
 
-      <div className="flex-1 px-6 pt-8 pb-10">
+      <div className="flex-1 app-page app-bottom pt-8">
         <div className="mx-auto w-full max-w-sm">
           <p className="mb-6 text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
             Skapa eget konto åt ditt barn. Barnet kan logga in själv och hantera sin önskelista.
