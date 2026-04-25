@@ -31,7 +31,7 @@ export default function LoginPage() {
         const snap = await getDoc(usernameRef);
 
         if (!snap.exists()) {
-          setError('Användarnamn eller lösenord är felaktigt');
+          setError('Det finns inget barnkonto med det användarnamnet.');
           return;
         }
 
@@ -42,8 +42,24 @@ export default function LoginPage() {
       const idTokenResult = await result.user.getIdTokenResult();
       const role = idTokenResult.claims['role'] as string | undefined;
       router.push(role === 'child' ? '/wishlist' : '/dashboard');
-    } catch {
-      setError('Användarnamn eller lösenord är felaktigt');
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? '';
+      if (
+        code === 'auth/wrong-password' ||
+        code === 'auth/invalid-credential'
+      ) {
+        setError('Fel lösenord. Be en förälder återställa det om det glömts bort.');
+      } else if (code === 'auth/user-not-found') {
+        setError('Det finns inget konto med de uppgifterna.');
+      } else if (code === 'auth/too-many-requests') {
+        setError('För många misslyckade försök. Vänta en stund innan du försöker igen.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Nätverksfel. Kontrollera anslutningen och försök igen.');
+      } else if (code === 'auth/user-disabled') {
+        setError('Kontot är inaktiverat.');
+      } else {
+        setError('Inloggningen misslyckades. Försök igen.');
+      }
     } finally {
       setLoading(false);
     }
