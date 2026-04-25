@@ -222,7 +222,10 @@ export default function WishlistPage() {
           className="anim-fab tap-feedback fixed z-20 flex items-center gap-2 font-display font-bold text-[14px]"
           style={{
             right: 'max(18px, env(safe-area-inset-right))',
-            bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+            /* iOS Safari URL/tab bar shrinks `100dvh` but `env(safe-area-inset-bottom)`
+               returns 0 while the bar is visible — so a bare `env()` puts the FAB
+               *behind* the toolbar. We bump the offset enough to clear it. */
+            bottom: 'max(28px, calc(env(safe-area-inset-bottom, 0px) + 24px))',
             padding: '14px 22px',
             minHeight: 52,
             borderRadius: 9999,
