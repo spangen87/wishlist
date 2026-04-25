@@ -16,13 +16,16 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // 'unsafe-eval' required in dev for React Fast Refresh (webpack HMR)
+              // apis.google.com is required by Firebase Auth Web SDK (iframe + token refresh helper)
               isDev
-                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-                : "script-src 'self' 'unsafe-inline'",
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com"
+                : "script-src 'self' 'unsafe-inline' https://apis.google.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com",
               "font-src 'self'",
+              // Firebase Auth opens an iframe at <projectId>.firebaseapp.com for popup/redirect/token flows
+              "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
               "frame-ancestors 'none'",
             ].join('; '),
           },
