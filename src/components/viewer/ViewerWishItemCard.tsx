@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
 import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
+import { Check } from '@/components/galaxy';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 
 function isSafeUrl(url: string): boolean {
@@ -12,14 +13,13 @@ function isSafeUrl(url: string): boolean {
 interface ViewerWishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
-  status: PurchaseStatusDoc | undefined;   // undefined = no purchaseStatus doc exists
+  status: PurchaseStatusDoc | undefined;
   currentUid: string;
-  // Callbacks — parent fetches idToken and calls API
   onTogglePurchased: (itemId: string, itemTitle: string, purchased: boolean) => Promise<void>;
   onUpdateNote: (itemId: string, itemTitle: string, note: string) => Promise<void>;
   onToggleReserved: (itemId: string, itemTitle: string, reserve: boolean) => Promise<void>;
-  purchaserName?: string; // resolved display name for status.purchasedBy uid (pre-fetched by parent)
-  reserverName?: string;  // resolved display name for status.reservedBy (pre-fetched by parent)
+  purchaserName?: string;
+  reserverName?: string;
   otherViewerNotes: Array<{ uid: string; displayName: string; note: string }>;
 }
 
@@ -49,7 +49,7 @@ export function ViewerWishItemCard({
   const isOtherReservation = isReserved && !isOwnReservation;
 
   async function handleToggle() {
-    if (isOthersPurchase) return; // disabled
+    if (isOthersPurchase) return;
     setToggling(true);
     setToggleError(null);
     try {
@@ -82,135 +82,151 @@ export function ViewerWishItemCard({
   return (
     <li
       role="listitem"
-      className={`bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl shadow-sm hover:shadow-md transition-shadow p-4 flex gap-3 items-start`}
+      className="light-card flex gap-3 p-3"
+      style={{ opacity: isPurchased ? 0.7 : 1 }}
     >
-      {/* Content area */}
-      <div className="flex-1 min-w-0">
-        {/* Title — struck through if purchased */}
-        <h2
-          className={`text-xl font-semibold leading-tight ${
-            isPurchased ? 'line-through text-[#6B7280]' : 'text-[#171717]'
-          }`}
-        >
-          {item.title}
-        </h2>
-
-        {item.price !== undefined && (
-          <span className="text-sm text-[#6B7280]">~{item.price} kr</span>
+      {/* Thumbnail */}
+      <div className="shrink-0">
+        {item.imageUrl && !imageLoadError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt={item.title}
+            width={56}
+            height={56}
+            className="object-cover"
+            style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--color-bg-light)' }}
+            onError={() => setImageLoadError(true)}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 12,
+              background: 'var(--color-accent-soft)',
+            }}
+          />
         )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-2">
+          <h2
+            className={`font-display font-semibold text-[15px] leading-tight flex-1 ${
+              isPurchased ? 'line-through' : ''
+            }`}
+            style={{ color: 'var(--color-ink-light)' }}
+          >
+            {item.title}
+          </h2>
+
+          {/* Checkbox toggle */}
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={toggling || isOthersPurchase}
+            aria-label={
+              isPurchased ? `Avmarkera ${item.title}` : `Markera ${item.title} som köpt`
+            }
+            className="shrink-0 flex items-center justify-center disabled:opacity-50"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: isPurchased ? 'var(--color-accent)' : 'transparent',
+              border: `1.5px solid ${
+                isPurchased ? 'var(--color-accent)' : 'var(--color-border-light)'
+              }`,
+            }}
+          >
+            {isPurchased && <Check size={14} color="#fff" />}
+          </button>
+        </div>
+
+        <div className="mt-1 flex items-center gap-2 flex-wrap text-[12px]">
+          {item.price !== undefined && (
+            <span className="font-tabular" style={{ color: 'var(--color-muted-light)' }}>
+              ~{item.price} kr
+            </span>
+          )}
+          {isPurchased && purchaserName && (
+            <PurchasedBadge purchaserName={purchaserName} isCurrentUser={isOwnPurchase} />
+          )}
+          {isOtherReservation && reserverName && (
+            <span className="italic" style={{ color: 'var(--color-muted-light)' }}>
+              · Reserverad av {reserverName}
+            </span>
+          )}
+        </div>
 
         {item.productUrl && isSafeUrl(item.productUrl) && (
           <a
             href={item.productUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-[#6B7280] truncate block max-w-full hover:underline"
+            className="block mt-1 text-[11px] font-mono truncate hover:underline"
+            style={{ color: 'var(--color-muted-light)' }}
           >
             {item.productUrl}
           </a>
         )}
 
-        {/* Purchase status badge */}
-        {isPurchased && purchaserName && (
-          <PurchasedBadge purchaserName={purchaserName} isCurrentUser={isOwnPurchase} />
-        )}
-
-        {/* Reservation badge — shown only when someone else has reserved (D-10) */}
-        {isOtherReservation && reserverName && (
-          <span className="text-sm text-[#6B7280] italic">
-            Reserverad av {reserverName}
-          </span>
-        )}
-
-        {/* Reserve button — hidden when item is purchased (D-14) */}
-        {!isPurchased && (
-          <button
-            onClick={handleToggleReserve}
-            disabled={reserving || isOtherReservation}
-            aria-label={
-              isOtherReservation
+        {/* Reserve / actions */}
+        <div className="mt-3 flex flex-col gap-2">
+          {!isPurchased && (
+            <button
+              type="button"
+              onClick={handleToggleReserve}
+              disabled={reserving || isOtherReservation}
+              aria-label={
+                isOtherReservation
+                  ? `Reserverad av ${reserverName ?? '...'}`
+                  : isOwnReservation
+                  ? `Avboka reservation för ${item.title}`
+                  : `Reservera ${item.title}`
+              }
+              className="rounded-full text-[12px] font-bold px-3.5 py-2 self-start disabled:opacity-50"
+              style={{
+                background: isOwnReservation ? 'var(--color-accent-soft)' : 'transparent',
+                color: isOwnReservation ? 'var(--color-accent)' : 'var(--color-muted-light)',
+                border: `1px ${
+                  isOwnReservation ? 'solid' : 'dashed'
+                } var(--color-border-light)`,
+                cursor: isOtherReservation ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isOtherReservation
                 ? `Reserverad av ${reserverName ?? '...'}`
                 : isOwnReservation
-                ? `Avboka reservation för ${item.title}`
-                : `Reservera ${item.title}`
-            }
-            className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors border ${
-              isOtherReservation
-                ? 'opacity-50 cursor-not-allowed border-[#E5D5CC] bg-white text-[#6B7280]'
-                : isOwnReservation
-                ? 'bg-[#F97316] hover:bg-[#EA6C0A] border-[#F97316] text-white'
-                : 'border-dashed border-[#E5D5CC] bg-white hover:bg-[#FFF0E8] text-[#171717]'
-            } disabled:opacity-50`}
-          >
-            {isOtherReservation
-              ? `Reserverad av ${reserverName ?? '...'}`
-              : isOwnReservation
-              ? 'Du tänker köpa detta'
-              : 'Jag tänker köpa detta'}
-          </button>
-        )}
-        {reserveError && (
-          <p role="alert" className="text-[#DC2626] text-sm mt-1">{reserveError}</p>
-        )}
-
-        {/* Purchase toggle */}
-        <button
-          onClick={handleToggle}
-          disabled={toggling || isOthersPurchase}
-          aria-label={
-            isPurchased ? `Avmarkera ${item.title}` : `Markera ${item.title} som köpt`
-          }
-          className={`mt-3 flex items-center gap-2 rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors border ${
-            isOthersPurchase
-              ? 'opacity-50 cursor-not-allowed border-[#E5D5CC] bg-white text-[#6B7280]'
-              : isPurchased
-              ? 'bg-[#F97316] hover:bg-[#EA6C0A] border-[#F97316] text-white'
-              : 'bg-white hover:bg-[#FFF0E8] border-[#E5D5CC] text-[#171717]'
-          } disabled:opacity-50`}
-        >
-          {isPurchased ? (
-            <>
-              {/* Checkmark SVG */}
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                <path d="M13.5 3.5L6 11 2.5 7.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {isOwnPurchase ? 'Markerad som köpt av dig' : `Köpt av ${purchaserName ?? '...'}`}
-            </>
-          ) : (
-            'Markera som köpt'
+                ? '✓ Du tänker köpa'
+                : 'Jag tänker köpa'}
+            </button>
           )}
-        </button>
 
-        {toggleError && (
-          <p role="alert" className="text-[#DC2626] text-sm mt-1">{toggleError}</p>
-        )}
+          {reserveError && (
+            <p role="alert" className="text-[12px]" style={{ color: 'var(--color-destructive)' }}>
+              {reserveError}
+            </p>
+          )}
+          {toggleError && (
+            <p role="alert" className="text-[12px]" style={{ color: 'var(--color-destructive)' }}>
+              {toggleError}
+            </p>
+          )}
 
-        {/* Viewer note section (D-13, D-14) */}
-        <div className="mt-3">
-          <ViewerNoteField
-            itemId={item.id}
-            itemTitle={item.title}
-            currentNote={status?.viewerNotes?.[currentUid] ?? ''}
-            onSave={(note) => onUpdateNote(item.id, item.title, note)}
-          />
-          <OtherViewerNotes notes={otherViewerNotes} />
+          <div>
+            <ViewerNoteField
+              itemId={item.id}
+              itemTitle={item.title}
+              currentNote={status?.viewerNotes?.[currentUid] ?? ''}
+              onSave={(note) => onUpdateNote(item.id, item.title, note)}
+            />
+            <OtherViewerNotes notes={otherViewerNotes} />
+          </div>
         </div>
-      </div>
-
-      {/* Right column: thumbnail */}
-      <div className="flex-shrink-0">
-        {item.imageUrl && !imageLoadError ? (
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            width={64}
-            height={64}
-            className="w-16 h-16 rounded-md object-cover"
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <div className="w-16 h-16 rounded-md bg-[#E5D5CC]" aria-hidden="true" />
-        )}
       </div>
     </li>
   );

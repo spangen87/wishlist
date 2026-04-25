@@ -6,6 +6,9 @@ interface ChildAccountFormProps {
   onSuccess: (uid: string) => void;
 }
 
+const FIELD_ACCENTS = ['#FF7AB8', '#7DE3FF', '#FFD36E', '#85F2CA'] as const;
+const FIELD_LABELS = ['Visningsnamn', 'Användarnamn', 'Lösenord', 'Ålder'] as const;
+
 export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -18,7 +21,6 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
     e.preventDefault();
     setError(null);
 
-    // Client-side validation
     if (!displayName.trim()) {
       setError('Ange ett visningsnamn');
       return;
@@ -72,7 +74,7 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
         return;
       }
       const { uid } = await res.json();
-      onSuccess(uid); // wishlistId === uid (deterministic)
+      onSuccess(uid);
     } catch {
       setError('Något gick fel. Försök igen.');
     } finally {
@@ -80,74 +82,73 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
     }
   }
 
+  const fields = [
+    {
+      id: 'displayName',
+      type: 'text',
+      autoComplete: 'off',
+      value: displayName,
+      onChange: setDisplayName,
+    },
+    {
+      id: 'username',
+      type: 'text',
+      autoComplete: 'off',
+      value: username,
+      onChange: setUsername,
+    },
+    {
+      id: 'password',
+      type: 'password',
+      autoComplete: 'new-password',
+      value: password,
+      onChange: setPassword,
+    },
+    {
+      id: 'age',
+      type: 'number',
+      autoComplete: 'off',
+      value: age,
+      onChange: setAge,
+      min: 1,
+      max: 18,
+    },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
-        <label htmlFor="displayName" className="block text-sm mb-1">
-          Visningsnamn
-        </label>
-        <input
-          id="displayName"
-          type="text"
-          autoComplete="off"
-          required
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded px-3 py-2"
-        />
-      </div>
-      <div>
-        <label htmlFor="username" className="block text-sm mb-1">
-          Användarnamn
-        </label>
-        <input
-          id="username"
-          type="text"
-          autoComplete="off"
-          required
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded px-3 py-2"
-        />
-      </div>
-      <div>
-        <label htmlFor="password" className="block text-sm mb-1">
-          Lösenord
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded px-3 py-2"
-        />
-      </div>
-      <div>
-        <label htmlFor="age" className="block text-sm mb-1">
-          Ålder
-        </label>
-        <input
-          id="age"
-          type="number"
-          min="1"
-          max="18"
-          required
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded px-3 py-2"
-        />
-      </div>
+      {fields.map((f, i) => (
+        <div key={f.id}>
+          <label
+            htmlFor={f.id}
+            className="block mb-1.5 text-[10px] font-bold tracking-caps"
+            style={{ color: FIELD_ACCENTS[i] }}
+          >
+            {FIELD_LABELS[i]}
+          </label>
+          <input
+            id={f.id}
+            type={f.type}
+            autoComplete={f.autoComplete}
+            min={f.min}
+            max={f.max}
+            required
+            value={f.value}
+            onChange={(e) => f.onChange(e.target.value)}
+            className="light-input"
+            style={{ boxShadow: `inset 0 0 0 1px ${FIELD_ACCENTS[i]}33` }}
+          />
+        </div>
+      ))}
+
       {error && (
-        <p role="alert" className="text-[#DC2626] text-sm">{error}</p>
+        <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--color-destructive)' }}>
+          {error}
+        </p>
       )}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Skapar…' : 'Skapa konto'}
+
+      <button type="submit" disabled={loading} className="light-cta mt-1">
+        {loading ? 'Skapar…' : 'Skapa konto →'}
       </button>
     </form>
   );

@@ -2,14 +2,14 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Min önskelista',
-    short_name: 'Önskelista',
-    description: 'Barnets önskelista — koordinera inköp utan att förstöra överraskningen',
+    name: 'Önskestjärnan',
+    short_name: 'Önskestjärnan',
+    description: 'Där drömmar tänds — barnens önskelista',
     id: '/',
     start_url: '/',
     display: 'standalone',
-    background_color: '#FFF9F5',
-    theme_color: '#FFF9F5',
+    background_color: '#0F1330',
+    theme_color: '#0F1330',
     icons: [
       {
         src: '/icons/icon-192.png',
@@ -20,6 +20,12 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icons/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
+      },
+      {
+        src: '/icons/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   }

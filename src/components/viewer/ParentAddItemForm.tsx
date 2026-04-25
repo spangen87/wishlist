@@ -53,12 +53,13 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-4 flex flex-col gap-4"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor="parent-item-title" className="text-sm text-gray-500">
+    <form onSubmit={handleSubmit} className="light-card p-5 flex flex-col gap-3">
+      <div>
+        <label
+          htmlFor="parent-item-title"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
           Titel
         </label>
         <input
@@ -67,16 +68,20 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-xl font-semibold text-[#171717] bg-white"
+          className="light-input"
         />
         {titleError && (
-          <p role="alert" className="text-red-600 text-sm">
+          <p role="alert" className="text-[12px] mt-1" style={{ color: 'var(--color-destructive)' }}>
             {titleError}
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="parent-item-price" className="text-sm text-gray-500">
+      <div>
+        <label
+          htmlFor="parent-item-price"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
           Ungefärligt pris (kr)
         </label>
         <input
@@ -85,11 +90,15 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           min="0"
           value={price}
           onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white"
+          className="light-input"
         />
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="parent-item-url" className="text-sm text-gray-500">
+      <div>
+        <label
+          htmlFor="parent-item-url"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
           Länk till produkt
         </label>
         <input
@@ -97,11 +106,15 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           type="url"
           value={productUrl}
           onChange={(e) => setProductUrl(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white"
+          className="light-input font-mono text-[12px]"
         />
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="parent-item-note" className="text-sm text-gray-500">
+      <div>
+        <label
+          htmlFor="parent-item-note"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
           Anteckning
         </label>
         <textarea
@@ -109,21 +122,18 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-base text-[#171717] bg-white resize-none"
+          className="light-input italic resize-none"
         />
       </div>
-      <div className="flex gap-3 flex-wrap">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] disabled:opacity-50 transition-colors"
-        >
+      <div className="flex gap-3 flex-wrap mt-1">
+        <button type="submit" disabled={saving} className="light-cta">
           {saving ? 'Sparar…' : 'Lägg till önskemål'}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-500 hover:underline px-4 py-2 min-h-[44px]"
+          className="px-4 py-3 text-[13px] font-semibold"
+          style={{ color: 'var(--color-muted-light)' }}
         >
           Avbryt
         </button>

@@ -1,14 +1,15 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { ChildAccountForm } from '@/components/onboarding/ChildAccountForm';
+import { LightShell, ArrowLeft } from '@/components/galaxy';
 
 export default function AddChildPage() {
   const router = useRouter();
   const { user, role, loading } = useAuth();
 
-  // Auth gate — viewer only (same as /onboarding)
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
@@ -16,30 +17,39 @@ export default function AddChildPage() {
 
   if (loading || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFF9F5]">
-        <p className="text-[#6B7280]">Laddar…</p>
-      </main>
+      <LightShell>
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
+        </div>
+      </LightShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4 bg-[#FFF9F5]">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center text-[#171717]">
-          Lägg till barn
-        </h1>
-        <ChildAccountForm
-          onSuccess={() => router.push('/dashboard')}
-        />
-        <p className="mt-4 text-sm text-center">
-          <a
-            href="/dashboard"
-            className="text-[#6B7280] underline"
-          >
-            Tillbaka till instrumentpanelen
-          </a>
-        </p>
+    <LightShell>
+      <header
+        className="flex items-center gap-3 px-5 pt-6 pb-4"
+        style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+      >
+        <Link
+          href="/dashboard"
+          aria-label="Tillbaka till mina listor"
+          className="flex items-center justify-center min-h-[44px] min-w-[44px]"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
+          <ArrowLeft size={18} />
+        </Link>
+        <h1 className="font-display font-bold text-[20px]">Lägg till barn</h1>
+      </header>
+
+      <div className="flex-1 px-6 pt-8 pb-10">
+        <div className="mx-auto w-full max-w-sm">
+          <p className="mb-6 text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
+            Skapa eget konto åt ditt barn. Barnet kan logga in själv och hantera sin önskelista.
+          </p>
+          <ChildAccountForm onSuccess={() => router.push('/dashboard')} />
+        </div>
       </div>
-    </main>
+    </LightShell>
   );
 }

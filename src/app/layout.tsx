@@ -1,25 +1,41 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fraunces = Fraunces({
   subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-fraunces",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const nunito = Nunito({
   subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-nunito",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Min önskelista",
-  description: "Barnets önskelista — koordinera inköp utan att förstöra överraskningen",
+  title: "Önskestjärnan",
+  description: "Där drömmar tänds — barnens önskelista",
   openGraph: {
-    title: "Min önskelista",
-    description: "Barnets önskelista — koordinera inköp utan att förstöra överraskningen",
+    title: "Önskestjärnan",
+    description: "Där drömmar tänds — barnens önskelista",
   },
+  icons: {
+    icon: [
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon-180.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F1330",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -30,7 +46,7 @@ export default function RootLayout({
   return (
     <html
       lang="sv"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${nunito.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {/* Unregister any previously installed service workers */}

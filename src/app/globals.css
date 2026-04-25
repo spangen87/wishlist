@@ -1,34 +1,297 @@
 @import "tailwindcss";
 
+/* ───────────────────────── Drömgalax tokens ───────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --color-bg: #FFF9F5;
-  --color-card: #FFF0E8;
-  --color-accent: #F9A87A;
-  --color-accent-hover: #F49060;
-  --color-border: #E5D5CC;
-  --color-text: #171717;
-  --color-muted: #6B7280;
+  /* Dark — barnvy (natthimmel) */
+  --color-night: #0F1330;
+  --color-night-deep: #070A1F;
+  --color-night-soft: #1C2150;
+  --color-card: #1A1F45;
+  --color-card-light: #242B5A;
+
+  --color-ink: #F4F0FF;
+  --color-muted: #9B9AC6;
+  --color-muted-deep: #6E6DA0;
+
+  /* Accents (samma i både dark + light) */
+  --color-cyan: #7DE3FF;
+  --color-pink: #FF7AB8;
+  --color-violet: #B28BFF;
+  --color-gold: #FFD36E;
+  --color-mint: #85F2CA;
+
+  /* Light — vuxenvy */
+  --color-bg-light: #F4F2FA;
+  --color-card-light-bg: #FFFFFF;
+  --color-ink-light: #1C1B2E;
+  --color-muted-light: #6B6A87;
+  --color-border-light: #E4E0F0;
+  --color-accent: #6E5BE8;
+  --color-accent-soft: #EEEAFF;
+
   --color-destructive: #DC2626;
+  --color-destructive-soft: #FEE2E2;
+
+  /* Glow */
+  --glow-pink: 0 0 20px rgba(255, 122, 184, 0.5), 0 4px 14px rgba(0,0,0,0.3);
+  --glow-cyan: 0 0 12px rgba(125, 227, 255, 0.6);
+  --glow-gold: 0 0 6px rgba(255, 211, 110, 0.7);
+
+  --shadow-card-dark: 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-card-light: 0 2px 8px rgba(28, 27, 46, 0.06);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 }
 
+/* Tailwind 4 theme tokens — exposes as bg-night, text-ink, etc. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-night: var(--color-night);
+  --color-night-deep: var(--color-night-deep);
+  --color-night-soft: var(--color-night-soft);
+  --color-card: var(--color-card);
+  --color-card-light: var(--color-card-light);
+  --color-ink: var(--color-ink);
+  --color-muted: var(--color-muted);
+  --color-muted-deep: var(--color-muted-deep);
+  --color-cyan: var(--color-cyan);
+  --color-pink: var(--color-pink);
+  --color-violet: var(--color-violet);
+  --color-gold: var(--color-gold);
+  --color-mint: var(--color-mint);
+  --color-bg-light: var(--color-bg-light);
+  --color-card-light-bg: var(--color-card-light-bg);
+  --color-ink-light: var(--color-ink-light);
+  --color-muted-light: var(--color-muted-light);
+  --color-border-light: var(--color-border-light);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-nunito), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--color-night-deep);
+  color: var(--color-ink);
+  font-family: var(--font-nunito), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'ss01';
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+}
+
+/* Gradient text helper */
+.gradient-text {
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.gradient-text-warm {
+  background: linear-gradient(90deg, var(--color-pink), var(--color-violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.tracking-caps {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ───────────────────────── Animations ───────────────────────── */
+@keyframes mollyFloat {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-4px) rotate(1deg); }
+}
+@keyframes mollyBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes sparkleTwinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.25) rotate(90deg); opacity: 1; }
+}
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+@keyframes starPop {
+  0%, 100% { transform: scale(1) rotate(0); }
+  50% { transform: scale(1.15) rotate(10deg); }
+}
+@keyframes fabPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 122, 184, 0.55), 0 4px 14px rgba(0,0,0,0.3); }
+  50% { transform: scale(1.04); box-shadow: 0 0 28px rgba(255, 122, 184, 0.75), 0 6px 18px rgba(0,0,0,0.32); }
+}
+@keyframes stargaze {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes auroraShift {
+  0%, 100% { transform: translateX(0) scaleY(1); opacity: 0.35; }
+  50% { transform: translateX(6px) scaleY(1.05); opacity: 0.55; }
+}
+
+.anim-molly       { animation: mollyFloat 4s ease-in-out infinite; }
+.anim-molly-bob   { animation: mollyBob 2.6s ease-in-out infinite; }
+.anim-sparkle     { animation: sparkleTwinkle 2.4s ease-in-out infinite; }
+.anim-heart       { animation: heartPulse 1.6s ease-in-out infinite; }
+.anim-star-pop    { animation: starPop 2.8s ease-in-out infinite; }
+.anim-fab         { animation: fabPulse 2.4s ease-in-out infinite; }
+.anim-twinkle     { animation: stargaze 2s ease-in-out infinite; }
+.anim-aurora      { animation: auroraShift 8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-molly,
+  .anim-molly-bob,
+  .anim-sparkle,
+  .anim-heart,
+  .anim-star-pop,
+  .anim-fab,
+  .anim-twinkle,
+  .anim-aurora {
+    animation: none !important;
+  }
+}
+
+/* ───────────────────────── Form base ───────────────────────── */
+.night-input {
+  background: var(--color-night-soft);
+  border: 1px solid var(--color-card-light);
+  color: var(--color-ink);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  font-size: 15px;
+  width: 100%;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.night-input::placeholder {
+  color: var(--color-muted-deep);
+}
+.night-input:focus {
+  outline: none;
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 3px rgba(125, 227, 255, 0.18);
+}
+
+.light-input {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  color: var(--color-ink-light);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  font-size: 15px;
+  width: 100%;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.light-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(110, 91, 232, 0.18);
+}
+
+/* CTAs */
+.neon-cta {
+  background: linear-gradient(135deg, var(--color-pink), var(--color-violet));
+  color: #fff;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 13px 22px;
+  box-shadow: var(--glow-pink);
+  transition: transform 120ms ease, box-shadow 200ms ease, opacity 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: none;
+  cursor: pointer;
+}
+.neon-cta:hover { transform: translateY(-1px); }
+.neon-cta:active { transform: translateY(0); }
+.neon-cta:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.neon-cta-outline {
+  background: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-card-light);
+  border-radius: 9999px;
+  padding: 12px 22px;
+  font-weight: 600;
+  font-size: 14px;
+  min-height: 48px;
+  transition: background 120ms ease;
+  cursor: pointer;
+}
+.neon-cta-outline:hover { background: rgba(255,255,255,0.04); }
+
+.light-cta {
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 13px 18px;
+  min-height: 48px;
+  border: none;
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+.light-cta:hover { background: #5a48d4; }
+.light-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.light-cta-outline {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1.5px solid var(--color-accent);
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-weight: 700;
+  min-height: 48px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.light-cta-outline:hover { background: var(--color-accent-soft); }
+
+/* Cards */
+.night-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-card-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card-dark);
+}
+
+.light-card {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-light);
+}
+
+/* Skip link / a11y */
+.sr-only-but-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
 }

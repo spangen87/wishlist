@@ -4,9 +4,9 @@ import { useState, useRef } from 'react';
 interface ViewerNoteFieldProps {
   itemId: string;
   itemTitle: string;
-  currentNote: string;   // Own note — empty string if no note yet
-  isSaving?: boolean;    // Optional external saving indicator
-  onSave: (note: string) => Promise<void>;  // Called on blur with note value
+  currentNote: string;
+  isSaving?: boolean;
+  onSave: (note: string) => Promise<void>;
 }
 
 export function ViewerNoteField({
@@ -19,14 +19,12 @@ export function ViewerNoteField({
   const [saveError, setSaveError] = useState<string | null>(null);
   const savingRef = useRef(false);
 
-  // Sync value if parent passes updated note (e.g. from onSnapshot)
-  // Only sync when not currently editing
   if (!expanded && value !== currentNote) {
     setValue(currentNote);
   }
 
   async function handleBlur() {
-    if (savingRef.current) return; // debounce: prevent double-save
+    if (savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     setSaveError(null);
@@ -46,21 +44,34 @@ export function ViewerNoteField({
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
+        className="text-[12px] font-semibold flex items-center min-h-[36px]"
+        style={{ color: 'var(--color-accent)' }}
       >
-        Lämna en anteckning
+        + Lämna en anteckning
       </button>
     );
   }
 
   if (!expanded && currentNote) {
     return (
-      <div className="flex items-start gap-2 text-sm">
-        <p className="text-[#171717] text-sm line-clamp-2 flex-1">{currentNote}</p>
+      <div
+        className="flex items-start gap-2 px-3 py-2 rounded-lg"
+        style={{ background: 'var(--color-accent-soft)' }}
+      >
+        <p
+          className="text-[12px] flex-1 italic line-clamp-2"
+          style={{ color: 'var(--color-ink-light)' }}
+        >
+          “{currentNote}”
+        </p>
         <button
           type="button"
-          onClick={() => { setValue(currentNote); setExpanded(true); }}
-          className="text-[#F97316] hover:underline flex-shrink-0 min-h-[44px] flex items-center"
+          onClick={() => {
+            setValue(currentNote);
+            setExpanded(true);
+          }}
+          className="text-[12px] font-semibold shrink-0"
+          style={{ color: 'var(--color-accent)' }}
         >
           Redigera
         </button>
@@ -77,13 +88,17 @@ export function ViewerNoteField({
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
         placeholder="Din anteckning…"
-        className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white resize-none transition-all duration-150"
+        className="light-input italic resize-none"
       />
       {saving && (
-        <span className="text-xs text-[#6B7280]">Sparar…</span>
+        <span className="text-[11px]" style={{ color: 'var(--color-muted-light)' }}>
+          Sparar…
+        </span>
       )}
       {saveError && (
-        <p role="alert" className="text-[#DC2626] text-sm">{saveError}</p>
+        <p role="alert" className="text-[12px]" style={{ color: 'var(--color-destructive)' }}>
+          {saveError}
+        </p>
       )}
     </div>
   );
