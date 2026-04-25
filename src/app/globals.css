@@ -81,15 +81,16 @@ html, body {
   font-feature-settings: 'ss01';
   /* Belt-and-braces: prevent any decorative element (aurora orbs, glow halos
      positioned outside the viewport, accidentally-wide content) from creating
-     horizontal scroll. */
+     horizontal scroll. iOS Safari historically ignores overflow-x:hidden when
+     there's a position:fixed descendant — overflow-x:clip is more reliable. */
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
   min-height: 100dvh;
-  /* Use dynamic viewport so iOS Safari toolbars don't push content. */
   width: 100%;
+  position: relative;
 }
 
 /* Long URLs and copy with no break opportunities should wrap rather than push
