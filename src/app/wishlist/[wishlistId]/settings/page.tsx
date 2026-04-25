@@ -6,6 +6,7 @@ import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
 import Link from 'next/link';
+import { LightShell, ArrowLeft, Calendar, UserIcon } from '@/components/galaxy';
 
 function OccasionSection({
   wishlistId,
@@ -55,14 +56,23 @@ function OccasionSection({
   }
 
   return (
-    <section className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-6 mb-6">
-      <h2 className="text-xl font-semibold text-[#171717]">Tillfälle</h2>
-      <p className="mt-1 text-sm text-[#6B7280]">
-        Ange vilket tillfälle önskelistan gäller och när — visas för anhöriga.
+    <section className="light-card p-5">
+      <div className="flex items-center gap-2">
+        <Calendar size={16} color="var(--color-accent)" />
+        <h2 className="font-display font-bold text-[16px]">Tillfälle</h2>
+      </div>
+      <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+        Ange vilket tillfälle önskelistan gäller — visas för anhöriga.
       </p>
       <form onSubmit={handleSave} className="mt-4 flex flex-col gap-3">
         <div>
-          <label htmlFor="occasion-name" className="text-sm text-[#6B7280]">Tillfälle</label>
+          <label
+            htmlFor="occasion-name"
+            className="block mb-1.5 text-[10px] font-bold tracking-caps"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            Tillfälle
+          </label>
           <input
             id="occasion-name"
             type="text"
@@ -70,7 +80,7 @@ function OccasionSection({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="t.ex. Födelsedag"
-            className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+            className="light-input"
           />
           <datalist id="occasion-suggestions">
             <option value="Födelsedag" />
@@ -81,29 +91,34 @@ function OccasionSection({
           </datalist>
         </div>
         <div>
-          <label htmlFor="occasion-date" className="text-sm text-[#6B7280]">Datum</label>
+          <label
+            htmlFor="occasion-date"
+            className="block mb-1.5 text-[10px] font-bold tracking-caps"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            Datum
+          </label>
           <input
             id="occasion-date"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+            className="light-input"
           />
         </div>
-        {error && <p role="alert" className="text-sm text-[#DC2626]">{error}</p>}
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 self-start"
-        >
-          {saving ? 'Sparar…' : saved ? 'Sparat!' : 'Spara tillfälle'}
+        {error && (
+          <p role="alert" className="text-[13px]" style={{ color: 'var(--color-destructive)' }}>
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={saving} className="light-cta self-start">
+          {saving ? 'Sparar…' : saved ? 'Sparat!' : 'Spara'}
         </button>
       </form>
     </section>
   );
 }
 
-// Co-förälder invite section — mirrors ShareLinkPanel UX, calls /api/invite/create-for-parent
 function CoParentInviteSection({
   wishlistId,
   initialToken,
@@ -112,14 +127,12 @@ function CoParentInviteSection({
   initialToken: string | null;
 }) {
   const [token, setToken] = useState<string | null>(initialToken);
-  const [copyLabel, setCopyLabel] = useState('Kopiera länk');
+  const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const inviteUrl =
-    token && typeof window !== 'undefined'
-      ? `${window.location.origin}/invite/${token}`
-      : null;
+    token && typeof window !== 'undefined' ? `${window.location.origin}/invite/${token}` : null;
 
   async function handleCreate() {
     setCreating(true);
@@ -146,51 +159,61 @@ function CoParentInviteSection({
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setCopyLabel('Kopierat!');
-      setTimeout(() => setCopyLabel('Kopiera länk'), 2000);
+      setTimeout(() => setCopyLabel('Kopiera'), 2000);
     } catch {
       setError('Kunde inte kopiera länken.');
     }
   }
 
   return (
-    <section className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-6 mt-6">
-      <h2 className="text-xl font-semibold text-[#171717]">Co-förälder</h2>
-      <p className="mt-1 text-sm text-[#6B7280]">
-        Dela denna länk med en annan förälder för att ge dem full tillgång att hantera önskelistan.
+    <section className="light-card p-5">
+      <div className="flex items-center gap-2">
+        <UserIcon size={16} color="var(--color-accent)" />
+        <h2 className="font-display font-bold text-[16px]">Co-förälder</h2>
+      </div>
+      <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+        Ge en annan förälder full tillgång att hantera önskelistan.
       </p>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-[#DC2626]">
+        <p role="alert" className="mt-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
           {error}
         </p>
       )}
       {token ? (
-        <div className="mt-4 flex gap-2 items-center flex-wrap">
+        <div
+          className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
+          style={{
+            background: 'var(--color-accent-soft)',
+            border: '1px dashed var(--color-border-light)',
+          }}
+        >
           <input
             type="text"
             readOnly
             value={inviteUrl ?? ''}
             aria-label="Co-förälderlänk"
-            className="flex-1 min-w-0 border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white font-mono"
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[12px] font-mono"
+            style={{ color: 'var(--color-ink-light)' }}
           />
           <button
+            type="button"
             onClick={handleCopy}
             aria-live="polite"
-            className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors flex-shrink-0"
+            className="text-[12px] font-bold px-2.5 py-1.5 rounded-md"
+            style={{ color: 'var(--color-accent)' }}
           >
             {copyLabel}
           </button>
         </div>
       ) : (
-        <div className="mt-4">
-          <p className="text-sm text-[#6B7280] mb-3">Ingen co-förälderlänk är skapad ännu.</p>
-          <button
-            onClick={handleCreate}
-            disabled={creating}
-            className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50"
-          >
-            {creating ? 'Skapar…' : 'Skapa co-förälderlänk'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={creating}
+          className="light-cta-outline mt-4"
+        >
+          {creating ? 'Skapar…' : 'Skapa co-förälderlänk'}
+        </button>
       )}
     </section>
   );
@@ -253,28 +276,40 @@ function DangerZone({ wishlistId, childUid }: { wishlistId: string; childUid: st
   }
 
   return (
-    <section className="bg-[#FFF5F5] border border-[#FECACA] rounded-2xl p-6 mt-6">
-      <h2 className="text-xl font-semibold text-[#171717]">Fara</h2>
-      <p className="mt-1 text-sm text-[#6B7280]">
+    <section
+      className="rounded-[18px] p-5"
+      style={{
+        background: 'var(--color-destructive-soft)',
+        border: '1px solid #FECACA',
+      }}
+    >
+      <h2 className="font-display font-bold text-[16px]" style={{ color: 'var(--color-destructive)' }}>
+        Fara
+      </h2>
+      <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
         Dessa åtgärder är permanenta och kan inte ångras.
       </p>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-[#DC2626]">
+        <p role="alert" className="mt-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
           {error}
         </p>
       )}
-      <div className="mt-4 flex flex-col gap-3">
+      <div className="mt-4 flex flex-col gap-2.5">
         <button
+          type="button"
           onClick={handleDeleteWishlist}
           disabled={deletingList || deletingAccount}
-          className="bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 w-full sm:w-auto"
+          className="rounded-xl px-4 py-3 text-[13px] font-bold text-white disabled:opacity-50"
+          style={{ background: 'var(--color-destructive)' }}
         >
           {deletingList ? 'Tar bort…' : 'Ta bort önskelistan'}
         </button>
         <button
+          type="button"
           onClick={handleDeleteChildAccount}
           disabled={deletingList || deletingAccount}
-          className="bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50 w-full sm:w-auto"
+          className="rounded-xl px-4 py-3 text-[13px] font-bold text-white disabled:opacity-50"
+          style={{ background: 'var(--color-destructive)' }}
         >
           {deletingAccount ? 'Tar bort…' : 'Ta bort barnkonto'}
         </button>
@@ -299,12 +334,10 @@ export default function WishlistSettingsPage({
   const [initialParentToken, setInitialParentToken] = useState<string | null>(null);
   const [initialOccasion, setInitialOccasion] = useState<{ name: string; date: string } | null>(null);
 
-  // Auth guard
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [loading, user, router]);
 
-  // Load wishlist + verify access (owner or parentUids member) + resolve viewer names
   useEffect(() => {
     if (loading || !user) return;
 
@@ -317,7 +350,6 @@ export default function WishlistSettingsPage({
         }
         const data = wishlistSnap.data();
 
-        // Gate: allow child owner AND parentUids members (D-17)
         const parentUids: string[] = data.parentUids ?? [];
         const callerIsOwner = data.childUid === user!.uid;
         const callerIsParent = parentUids.includes(user!.uid);
@@ -326,16 +358,11 @@ export default function WishlistSettingsPage({
           return;
         }
 
-        setIsOwner(true); // "isOwner" means "has settings access" — true for child and parent
+        setIsOwner(true);
         setAccessType(callerIsOwner ? 'child' : 'parent');
-
-        // Read initial parent invite token for CoParentInviteSection (D-18)
         setInitialParentToken(data.currentParentInviteToken ?? null);
-
-        // Read existing occasion
         setInitialOccasion(data.occasion ?? null);
 
-        // Resolve viewer display names
         const viewerUids: string[] = data.viewerUids ?? [];
         const resolved = await Promise.all(
           viewerUids.map(async (uid) => {
@@ -361,28 +388,36 @@ export default function WishlistSettingsPage({
 
   if (loading || dataLoading) {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex items-center justify-center">
-        <p className="text-[#6B7280]">Laddar…</p>
-      </main>
+      <LightShell>
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
+        </div>
+      </LightShell>
     );
   }
 
   if (!user || !isOwner) return null;
 
   return (
-    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          {/* Back link is context-aware: parents go to viewer page, children go to wishlist (D-19) */}
-          <Link
-            href={accessType === 'parent' ? `/viewer/${wishlistId}` : '/wishlist'}
-            className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
-          >
-            ← Tillbaka
-          </Link>
-          <h1 className="text-xl font-semibold text-[#171717]">Inställningar</h1>
+    <LightShell>
+      <header
+        className="flex items-center gap-3 px-5 pt-6 pb-4"
+        style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+      >
+        <Link
+          href={accessType === 'parent' ? `/viewer/${wishlistId}` : '/wishlist'}
+          aria-label="Tillbaka"
+          className="flex items-center justify-center min-h-[44px] min-w-[44px]"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
+          <ArrowLeft size={18} />
+        </Link>
+        <div>
+          <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
         </div>
+      </header>
 
+      <div className="px-4 pt-5 pb-12 mx-auto w-full max-w-2xl flex flex-col gap-3">
         <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
@@ -390,6 +425,6 @@ export default function WishlistSettingsPage({
           <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
         )}
       </div>
-    </main>
+    </LightShell>
   );
 }

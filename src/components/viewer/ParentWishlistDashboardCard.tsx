@@ -9,6 +9,14 @@ interface ParentWishlistDashboardCardProps {
   purchasedCount: number;
 }
 
+const INITIAL_BG = ['#6E5BE8', '#FF7AB8', '#7DE3FF', '#85F2CA', '#FFD36E'];
+
+function pickColor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return INITIAL_BG[h % INITIAL_BG.length];
+}
+
 export function ParentWishlistDashboardCard({
   wishlist,
   childName,
@@ -16,48 +24,64 @@ export function ParentWishlistDashboardCard({
   purchasedCount,
 }: ParentWishlistDashboardCardProps) {
   const occasion = wishlist.occasion;
+  const initial = (childName || '?').slice(0, 1).toUpperCase();
+  const accent = pickColor(wishlist.id || childName);
+  const progress = itemCount > 0 ? Math.round((purchasedCount / itemCount) * 100) : 0;
 
   return (
-    <div className="bg-white border border-[#E5D5CC] rounded-2xl p-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
-      {/* Parent badge */}
-      <span className="text-xs font-semibold text-[#F97316] uppercase tracking-wide">
-        Mitt barn
-      </span>
-
-      {/* Card body — navigates to viewer page */}
-      <Link
-        href={`/viewer/${wishlist.id}`}
-        className="block"
-      >
-        {/* Child name */}
-        <h2 className="text-xl font-semibold text-[#171717] leading-tight">
-          {childName}
-        </h2>
-
-        {/* Occasion */}
-        {occasion && (
-          <p className="mt-1 text-sm text-[#F97316] font-medium">
-            {occasion.name} &middot;{' '}
-            {new Date(occasion.date + 'T00:00:00').toLocaleDateString('sv-SE', {
-              year: 'numeric', month: 'short', day: 'numeric',
-            })}
+    <div
+      className="light-card p-4 flex flex-col gap-3"
+      style={{ background: '#fff' }}
+    >
+      <Link href={`/viewer/${wishlist.id}`} className="flex items-center gap-3 min-w-0">
+        <div
+          className="flex items-center justify-center font-display font-bold shrink-0"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            background: `${accent}1f`,
+            color: accent,
+            fontSize: 20,
+          }}
+          aria-hidden="true"
+        >
+          {initial}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--color-ink-light)' }}>
+            {childName}
+          </h2>
+          {occasion && (
+            <p className="text-[12px] font-tabular truncate" style={{ color: accent }}>
+              {occasion.name} ·{' '}
+              {new Date(occasion.date + 'T00:00:00').toLocaleDateString('sv-SE', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </p>
+          )}
+          <p className="text-[12px] font-tabular mt-0.5" style={{ color: 'var(--color-muted-light)' }}>
+            {itemCount} {itemCount === 1 ? 'önskemål' : 'önskemål'} · {purchasedCount} köpta
           </p>
-        )}
-
-        {/* Counts */}
-        <p className="mt-2 text-sm text-[#6B7280]">
-          {itemCount} {itemCount === 1 ? 'önskemål' : 'önskemål'} &middot;{' '}
-          {purchasedCount} av {itemCount} köpta
-        </p>
-
-        {/* Thumbnail placeholder */}
-        <div className="mt-3 w-12 h-12 rounded-md bg-[#E5D5CC]" aria-hidden="true" />
+          <div
+            className="mt-2 h-1 rounded-full overflow-hidden"
+            style={{ background: 'var(--color-border-light)' }}
+            aria-hidden="true"
+          >
+            <div
+              className="h-full"
+              style={{ width: `${progress}%`, background: accent, transition: 'width 200ms ease' }}
+            />
+          </div>
+        </div>
       </Link>
 
-      {/* Settings link */}
       <Link
         href={`/wishlist/${wishlist.id}/settings`}
-        className="text-sm text-[#6B7280] hover:underline self-start"
+        className="text-[12px] font-bold self-start"
+        style={{ color: accent }}
       >
         Inställningar →
       </Link>

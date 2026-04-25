@@ -1,25 +1,33 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase/client';
+import { LinkIcon } from '@/components/galaxy';
 
 interface ShareLinkPanelProps {
   wishlistId: string;
-  viewers: Array<{ uid: string; displayName: string }>;  // pre-resolved by parent
+  viewers: Array<{ uid: string; displayName: string }>;
+}
+
+const VIEWER_COLORS = ['#6E5BE8', '#FF7AB8', '#7DE3FF', '#85F2CA', '#FFD36E'];
+
+function pickColor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return VIEWER_COLORS[h % VIEWER_COLORS.length];
 }
 
 export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copyLabel, setCopyLabel] = useState('Kopiera länk');
+  const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const inviteUrl = token
-    ? `${window.location.origin}/invite/${token}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${token}`
     : null;
 
-  // Fetch current active token on mount
   useEffect(() => {
     async function fetchToken() {
       try {
@@ -67,7 +75,7 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setCopyLabel('Kopierat!');
-      setTimeout(() => setCopyLabel('Kopiera länk'), 2000);
+      setTimeout(() => setCopyLabel('Kopiera'), 2000);
     } catch {
       setError('Kunde inte kopiera länken.');
     }
@@ -95,59 +103,82 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
   }
 
   return (
-    <section className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-6">
-      <h2 className="text-xl font-semibold text-[#171717]">Delningslänk</h2>
+    <section className="light-card p-5">
+      <div className="flex items-center gap-2">
+        <LinkIcon size={16} color="var(--color-accent)" />
+        <h2 className="font-display font-bold text-[16px]">Delningslänk</h2>
+      </div>
+      <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+        Dela med mormor, farfar och vänner
+      </p>
 
       {error && (
-        <p role="alert" className="mt-2 text-sm text-[#DC2626]">{error}</p>
+        <p role="alert" className="mt-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
+          {error}
+        </p>
       )}
 
       {loading ? (
-        <p className="mt-4 text-sm text-[#6B7280]">Laddar…</p>
+        <p className="mt-4 text-[13px]" style={{ color: 'var(--color-muted-light)' }}>
+          Laddar…
+        </p>
       ) : token ? (
         <>
-          {/* Link display + copy */}
-          <div className="mt-4 flex gap-2 items-center flex-wrap">
+          <div
+            className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
+            style={{
+              background: 'var(--color-accent-soft)',
+              border: '1px dashed var(--color-border-light)',
+            }}
+          >
             <input
               type="text"
               readOnly
               value={inviteUrl ?? ''}
-              className="flex-1 min-w-0 border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white font-mono"
               aria-label="Delningslänk"
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[12px] font-mono"
+              style={{ color: 'var(--color-ink-light)' }}
             />
             <button
+              type="button"
               onClick={handleCopy}
-              className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors flex-shrink-0"
               aria-live="polite"
+              className="text-[12px] font-bold px-2.5 py-1.5 rounded-md"
+              style={{ color: 'var(--color-accent)' }}
             >
               {copyLabel}
             </button>
           </div>
 
-          {/* Regenerate section */}
           <div className="mt-4">
             {!showRegenConfirm ? (
               <button
+                type="button"
                 onClick={() => setShowRegenConfirm(true)}
-                className="border border-[#E5D5CC] text-[#171717] rounded-xl px-4 py-2 text-sm min-h-[44px] hover:bg-[#FFF9F5] transition-colors"
+                className="text-[12px]"
+                style={{ color: 'var(--color-muted-light)' }}
               >
                 Generera ny länk
               </button>
             ) : (
               <div role="alert" className="flex flex-wrap gap-3 items-center">
-                <span className="text-sm text-[#171717]">
+                <span className="text-[13px]" style={{ color: 'var(--color-ink-light)' }}>
                   Gamla länken slutar fungera. Fortsätt?
                 </span>
                 <button
+                  type="button"
                   onClick={handleRegenerate}
                   disabled={regenerating}
-                  className="text-sm text-[#DC2626] hover:underline min-h-[44px] disabled:opacity-50"
+                  className="text-[13px] font-bold disabled:opacity-50"
+                  style={{ color: 'var(--color-destructive)' }}
                 >
-                  {regenerating ? 'Genererar…' : 'Ja, generera ny länk'}
+                  {regenerating ? 'Genererar…' : 'Ja, generera ny'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowRegenConfirm(false)}
-                  className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
+                  className="text-[13px]"
+                  style={{ color: 'var(--color-muted-light)' }}
                 >
                   Avbryt
                 </button>
@@ -156,33 +187,58 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
           </div>
         </>
       ) : (
-        /* No active invite yet — create first one */
         <div className="mt-4">
-          <p className="text-sm text-[#6B7280] mb-3">
+          <p className="text-[13px] mb-3" style={{ color: 'var(--color-muted-light)' }}>
             Generera en delningslänk för att bjuda in betraktare.
           </p>
           <button
+            type="button"
             onClick={handleCreateLink}
             disabled={loading}
-            className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors disabled:opacity-50"
+            className="light-cta-outline"
           >
             Skapa delningslänk
           </button>
         </div>
       )}
 
-      {/* Viewer list */}
       {viewers.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-base font-semibold text-[#171717]">
+        <div className="mt-5">
+          <h3
+            className="text-[10px] font-bold tracking-caps mb-2"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
             Betraktare ({viewers.length})
           </h3>
-          <ul className="mt-2 flex flex-col gap-1">
-            {viewers.map(({ uid, displayName }) => (
-              <li key={uid} className="text-sm text-[#6B7280]">
-                {displayName}
-              </li>
-            ))}
+          <ul className="flex flex-wrap gap-2">
+            {viewers.map(({ uid, displayName }) => {
+              const accent = pickColor(uid);
+              const initial = displayName.slice(0, 1).toUpperCase();
+              return (
+                <li
+                  key={uid}
+                  className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1"
+                  style={{ background: `${accent}1f` }}
+                >
+                  <span
+                    className="flex items-center justify-center font-bold"
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: accent,
+                      color: '#fff',
+                      fontSize: 11,
+                    }}
+                  >
+                    {initial}
+                  </span>
+                  <span className="text-[12px] font-semibold" style={{ color: accent }}>
+                    {displayName}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

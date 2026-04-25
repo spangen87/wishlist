@@ -4,28 +4,34 @@ import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { ChildAccountForm } from '@/components/onboarding/ChildAccountForm';
+import { LightShell } from '@/components/galaxy';
 
 type WizardState = {
   step: 1 | 2 | 3;
   wishlistId: string | null;
 };
 
-// Step progress dots (UI-SPEC: 8px dots, accent fill for active, border-color for inactive)
 function StepDots({ step }: { step: 1 | 2 | 3 }) {
   return (
     <div className="flex justify-center gap-2 mb-6" aria-label={`Steg ${step} av 3`}>
       {([1, 2, 3] as const).map((n) => (
         <span
           key={n}
-          className={`w-2 h-2 rounded-full ${n === step ? 'bg-[#F9A87A]' : 'bg-[#E5D5CC]'}`}
           aria-current={n === step ? 'step' : undefined}
+          className="h-1.5 w-7 rounded-full"
+          style={{
+            background:
+              n === step
+                ? 'linear-gradient(90deg, #FF7AB8, #B28BFF)'
+                : 'var(--color-border-light)',
+            boxShadow: n === step ? '0 0 8px rgba(255,122,184,0.45)' : undefined,
+          }}
         />
       ))}
     </div>
   );
 }
 
-// Step 2: Name the wishlist
 function Step2({
   wishlistId,
   onDone,
@@ -71,7 +77,11 @@ function Step2({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="wishlistTitle" className="block text-sm mb-1">
+        <label
+          htmlFor="wishlistTitle"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
           Namn på önskelistan
         </label>
         <input
@@ -81,32 +91,26 @@ function Step2({
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded px-3 py-2"
+          className="light-input"
         />
       </div>
       {error && (
-        <p role="alert" className="text-[#DC2626] text-sm">{error}</p>
+        <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--color-destructive)' }}>
+          {error}
+        </p>
       )}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors disabled:opacity-50"
-      >
+      <button type="submit" disabled={loading} className="light-cta mt-1">
         {loading ? 'Sparar…' : 'Spara och fortsätt'}
       </button>
     </form>
   );
 }
 
-// Step 3: Share link — uses /api/invite/create-for-child (not ShareLinkPanel, which enforces child ownership)
-// D-02 override: ShareLinkPanel calls /api/invite/current which enforces childUid === decoded.uid,
-// blocking the viewer/parent session. This inline component calls /api/invite/create-for-child instead.
-// User approved this deviation (see decision_overrides block in 01-02-PLAN.md).
 function Step3({ wishlistId }: { wishlistId: string }) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [linkLoading, setLinkLoading] = useState(true);
-  const [copyLabel, setCopyLabel] = useState('Kopiera länk');
+  const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [error, setError] = useState<string | null>(null);
 
   const inviteUrl = token
@@ -143,7 +147,7 @@ function Step3({ wishlistId }: { wishlistId: string }) {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setCopyLabel('Kopierat!');
-      setTimeout(() => setCopyLabel('Kopiera länk'), 2000);
+      setTimeout(() => setCopyLabel('Kopiera'), 2000);
     } catch {
       setError('Kunde inte kopiera länken.');
     }
@@ -151,35 +155,48 @@ function Step3({ wishlistId }: { wishlistId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-[#6B7280]">
+      <p className="text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
         Skicka länken till familj och vänner så kan de se önskelistan.
       </p>
-      {error && <p role="alert" className="text-[#DC2626] text-sm">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--color-destructive)' }}>
+          {error}
+        </p>
+      )}
       {linkLoading ? (
-        <p className="text-sm text-[#6B7280]">Laddar…</p>
+        <p className="text-sm" style={{ color: 'var(--color-muted-light)' }}>
+          Laddar…
+        </p>
       ) : token ? (
-        <div className="flex gap-2 items-center flex-wrap">
+        <div
+          className="flex items-center gap-2 rounded-xl px-3 py-2"
+          style={{ background: 'var(--color-accent-soft)' }}
+        >
           <input
             type="text"
             readOnly
             value={inviteUrl ?? ''}
             aria-label="Delningslänk"
-            className="flex-1 min-w-0 border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white font-mono"
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[12px] font-mono"
+            style={{ color: 'var(--color-ink-light)' }}
           />
           <button
+            type="button"
             onClick={handleCopy}
-            className="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors flex-shrink-0"
             aria-live="polite"
+            className="text-[12px] font-bold px-2 py-1.5 rounded-md"
+            style={{ color: 'var(--color-accent)' }}
           >
             {copyLabel}
           </button>
         </div>
       ) : null}
       <button
+        type="button"
         onClick={() => router.push(`/viewer/${wishlistId}`)}
-        className="w-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors"
+        className="light-cta"
       >
-        Gå till önskelistan
+        Gå till önskelistan →
       </button>
     </div>
   );
@@ -190,52 +207,68 @@ export default function OnboardingPage() {
   const { user, role, loading } = useAuth();
   const [state, setState] = useState<WizardState>({ step: 1, wishlistId: null });
 
-  // Auth gate — viewer only (D-03)
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
   const headings: Record<1 | 2 | 3, string> = {
-    1: 'Skapa barnkonto',
+    1: 'Tänd en ny stjärna',
     2: 'Namnge önskelistan',
     3: 'Dela önskelistan',
   };
 
+  const subtitles: Record<1 | 2 | 3, string> = {
+    1: 'Skapa eget konto åt ditt barn',
+    2: 'Vad ska listan heta?',
+    3: 'Bjud in mormor, farfar och vänner',
+  };
+
   if (loading || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFF9F5]">
-        <p className="text-[#6B7280]">Laddar…</p>
-      </main>
+      <LightShell>
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
+        </div>
+      </LightShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4 bg-[#FFF9F5]">
-      <div className="w-full max-w-sm">
-        <p className="text-sm text-center text-[#6B7280] mb-2">Kom igång</p>
-        <h1 className="text-2xl font-bold mb-4 text-center text-[#171717]">
+    <LightShell>
+      <div className="px-5 pt-7">
+        <StepDots step={state.step} />
+      </div>
+      <div className="px-6 text-center">
+        <p className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
+          Steg {state.step} av 3
+        </p>
+        <h1 className="font-display font-bold text-[28px] mt-1.5 gradient-text-warm leading-tight">
           {headings[state.step]}
         </h1>
-        <StepDots step={state.step} />
-
-        {state.step === 1 && (
-          <ChildAccountForm
-            onSuccess={(uid) =>
-              setState({ step: 2, wishlistId: uid })
-            }
-          />
-        )}
-        {state.step === 2 && state.wishlistId && (
-          <Step2
-            wishlistId={state.wishlistId}
-            onDone={() => setState((s) => ({ ...s, step: 3 }))}
-          />
-        )}
-        {state.step === 3 && state.wishlistId && (
-          <Step3 wishlistId={state.wishlistId} />
-        )}
+        <p className="mt-2 text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
+          {subtitles[state.step]}
+        </p>
       </div>
-    </main>
+
+      <div className="flex-1 px-6 pt-6 pb-10">
+        <div className="mx-auto w-full max-w-sm">
+          {state.step === 1 && (
+            <ChildAccountForm
+              onSuccess={(uid) => setState({ step: 2, wishlistId: uid })}
+            />
+          )}
+          {state.step === 2 && state.wishlistId && (
+            <Step2
+              wishlistId={state.wishlistId}
+              onDone={() => setState((s) => ({ ...s, step: 3 }))}
+            />
+          )}
+          {state.step === 3 && state.wishlistId && (
+            <Step3 wishlistId={state.wishlistId} />
+          )}
+        </div>
+      </div>
+    </LightShell>
   );
 }

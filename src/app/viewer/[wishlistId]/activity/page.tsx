@@ -8,6 +8,7 @@ import { subscribeToActivityLog, getActivityLogPage } from '@/lib/firebase/viewe
 import { ActivityLogEntry } from '@/components/viewer/ActivityLogEntry';
 import type { ActivityLogDoc } from '@/types/firestore';
 import Link from 'next/link';
+import { LightShell, ArrowLeft } from '@/components/galaxy';
 
 export default function ActivityLogPage({
   params,
@@ -25,13 +26,11 @@ export default function ActivityLogPage({
   const [hasMore, setHasMore] = useState(false);
   const fetchedNamesRef = useRef(new Set<string>());
 
-  // Auth guards
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
-  // fetchDisplayName uses a stable ref for deduplication — no state in deps
   const fetchDisplayName = useCallback(async (uid: string) => {
     if (fetchedNamesRef.current.has(uid)) return;
     fetchedNamesRef.current.add(uid);
@@ -43,9 +42,9 @@ export default function ActivityLogPage({
         setDisplayNames((prev) => new Map(prev).set(uid, name));
       }
     } catch {
-      // silent fail — fallback to uid
+      // silent
     }
-  }, []); // no deps — uses ref, not state
+  }, []);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -59,7 +58,6 @@ export default function ActivityLogPage({
     });
 
     return () => unsub();
-  // fetchDisplayName is stable via useCallback — intentionally omitted
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, wishlistId]);
 
@@ -74,35 +72,44 @@ export default function ActivityLogPage({
 
   if (loading || dataLoading) {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex items-center justify-center">
-        <p className="text-[#6B7280]">Laddar…</p>
-      </main>
+      <LightShell>
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
+        </div>
+      </LightShell>
     );
   }
 
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Link
-            href={`/viewer/${wishlistId}`}
-            className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
-          >
-            ← Tillbaka till önskelista
-          </Link>
-          <h1 className="text-xl font-semibold text-[#171717]">Aktivitetslogg</h1>
-        </div>
+    <LightShell>
+      <header
+        className="px-5 pt-6 pb-4"
+        style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+      >
+        <Link
+          href={`/viewer/${wishlistId}`}
+          aria-label="Tillbaka till önskelista"
+          className="flex items-center gap-1.5 text-[12px]"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
+          <ArrowLeft size={14} /> Tillbaka
+        </Link>
+        <h1 className="font-display font-bold text-[22px] mt-1.5">Aktivitet</h1>
+      </header>
 
+      <div className="mx-auto w-full max-w-2xl pb-12">
         {entries.length === 0 ? (
-          <p className="text-base text-[#6B7280] text-center py-16">
+          <p
+            className="text-center py-16 text-[14px]"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
             Inga händelser ännu
           </p>
         ) : (
           <>
-            <ul role="list">
+            <ul role="list" className="pt-2">
               {entries.map((entry, idx) => (
                 <ActivityLogEntry
                   key={entry.id ?? idx}
@@ -115,8 +122,10 @@ export default function ActivityLogPage({
             {hasMore && (
               <div className="mt-6 text-center">
                 <button
+                  type="button"
                   onClick={loadMore}
-                  className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
+                  className="text-[13px] font-semibold"
+                  style={{ color: 'var(--color-accent)' }}
                 >
                   Visa fler
                 </button>
@@ -125,6 +134,6 @@ export default function ActivityLogPage({
           </>
         )}
       </div>
-    </main>
+    </LightShell>
   );
 }

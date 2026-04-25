@@ -21,6 +21,13 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import {
+  NightShell,
+  BrandHeader,
+  Cog,
+  LogOut,
+  Sparkle,
+} from '@/components/galaxy';
 
 export default function WishlistPage() {
   const router = useRouter();
@@ -32,6 +39,12 @@ export default function WishlistPage() {
   const [activeItem, setActiveItem] = useState<WishItemDoc | null>(null);
   const wishlistIdRef = useRef<string | null>(null);
 
+  const displayName = (() => {
+    if (!user) return 'Min galax';
+    const name = user.displayName || (user.email ? user.email.split('@')[0] : '');
+    return name ? `${name}s galax` : 'Min galax';
+  })();
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(TouchSensor, {
@@ -42,21 +55,18 @@ export default function WishlistPage() {
     })
   );
 
-  // Auth guard — same pattern as dashboard
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [loading, user, router]);
 
-  // D-07: Viewer role users accessing /wishlist are redirected to their dashboard
   useEffect(() => {
     if (!loading && user && role === 'viewer') {
       router.push('/dashboard');
     }
   }, [loading, user, role, router]);
 
-  // Bootstrap wishlist and subscribe to items
   useEffect(() => {
     if (loading || !user) return;
     let unsubscribe: (() => void) | null = null;
@@ -89,16 +99,12 @@ export default function WishlistPage() {
     const newIndex = items.findIndex((i) => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    // Compute adjacent positions for the target slot.
-    // Use the sorted array excluding the dragged item to find neighbors.
     const remaining = items.filter((i) => i.id !== active.id);
     const insertAt = newIndex > oldIndex ? newIndex : newIndex;
     const prevPos = remaining[insertAt - 1]?.position ?? null;
     const nextPos = remaining[insertAt]?.position ?? null;
 
-    // Pitfall 3 guard: skip if adjacent positions are equal (handled inside updateItemPosition)
     await updateItemPosition(wishlistId, active.id as string, prevPos, nextPos);
-    // Do NOT update local `items` state here — onSnapshot will reflect the new order
   }
 
   if (loading || dataLoading) return <LoadingSkeleton />;
@@ -106,34 +112,58 @@ export default function WishlistPage() {
 
   const lastPosition = items.length > 0 ? items[items.length - 1].position : null;
   const totalFavorites = items.filter((i) => i.isFavorite).length;
+  const isEmpty = items.length === 0 && !showAddForm;
 
   return (
-    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-[#171717]">Din önskelista</h1>
-          <div className="flex items-center gap-1">
-            {wishlistId && (
-              <a
-                href={`/wishlist/${wishlistId}/settings`}
-                aria-label="Inställningar för önskelistan"
-                className="text-[#6B7280] hover:text-[#171717] min-h-[44px] flex items-center px-2"
+    <NightShell twinkleCount={28} auroraColor={isEmpty ? '#B28BFF' : '#FF7AB8'}>
+      <div className="px-5 pt-5 pb-3">
+        <BrandHeader
+          eyebrow={displayName.toUpperCase()}
+          title="Önskestjärnor"
+          mollyMood="happy"
+          rightSlot={
+            <>
+              {wishlistId && (
+                <a
+                  href={`/wishlist/${wishlistId}/settings`}
+                  aria-label="Inställningar för önskelistan"
+                  className="flex items-center justify-center rounded-full"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-card-light)',
+                    color: 'var(--color-muted)',
+                  }}
+                >
+                  <Cog size={14} />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut(auth);
+                  router.push('/login');
+                }}
+                aria-label="Logga ut"
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: 'var(--color-card)',
+                  border: '1px solid var(--color-card-light)',
+                  color: 'var(--color-muted)',
+                }}
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-                </svg>
-              </a>
-            )}
-            <button
-              onClick={async () => { await signOut(auth); router.push('/login'); }}
-              className="text-[#6B7280] hover:text-[#171717] min-h-[44px] flex items-center px-2 text-sm"
-            >
-              Logga ut
-            </button>
-          </div>
-        </div>
+                <LogOut size={14} />
+              </button>
+            </>
+          }
+        />
+      </div>
 
-        {items.length === 0 && !showAddForm ? (
+      <div className="flex-1 px-4 pb-32 pt-2 mx-auto w-full max-w-2xl">
+        {isEmpty ? (
           <EmptyState onAdd={() => setShowAddForm(true)} />
         ) : (
           <>
@@ -144,51 +174,68 @@ export default function WishlistPage() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <ul role="list" className="flex flex-col gap-6">
-                  {items.map((item) => (
+                <ul role="list" className="flex flex-col gap-2.5">
+                  {items.map((item, idx) => (
                     <WishItemCard
                       key={item.id}
                       item={item}
                       wishlistId={wishlistId!}
                       totalFavorites={totalFavorites}
+                      index={idx}
                     />
                   ))}
                 </ul>
               </SortableContext>
               <DragOverlay>
                 {activeItem ? (
-                  <div className="opacity-90 rotate-1 shadow-xl rounded-2xl">
+                  <div className="opacity-90 rotate-1 shadow-xl">
                     <WishItemCard
                       item={activeItem}
                       wishlistId={wishlistId!}
                       totalFavorites={totalFavorites}
+                      index={0}
                     />
                   </div>
                 ) : null}
               </DragOverlay>
             </DndContext>
 
-            {showAddForm ? (
-              <div className="mt-6">
+            {showAddForm && (
+              <div className="mt-4">
                 <AddItemForm
                   wishlistId={wishlistId!}
                   lastPosition={lastPosition}
                   onClose={() => setShowAddForm(false)}
                 />
               </div>
-            ) : (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] transition-colors"
-                >
-                  + Lägg till önskemål
-                </button>
-              </div>
             )}
           </>
         )}
       </div>
-    </main>
+
+      {/* FAB */}
+      {!showAddForm && !isEmpty && (
+        <button
+          type="button"
+          onClick={() => setShowAddForm(true)}
+          aria-label="Lägg till önskemål"
+          className="anim-fab fixed z-20 flex items-center gap-2 font-display font-bold text-[14px]"
+          style={{
+            right: 18,
+            bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+            padding: '12px 20px',
+            borderRadius: 9999,
+            color: '#fff',
+            background: 'linear-gradient(135deg, #FF7AB8, #B28BFF)',
+            border: 'none',
+          }}
+        >
+          <span className="anim-sparkle inline-flex">
+            <Sparkle size={14} color="#fff" />
+          </span>
+          Önska
+        </button>
+      )}
+    </NightShell>
   );
 }

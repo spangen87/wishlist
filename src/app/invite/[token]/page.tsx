@@ -7,15 +7,10 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { Molly, NightShell, Sparkle } from '@/components/galaxy';
 
-type PageState =
-  | 'loading'
-  | 'invalid'
-  | 'logged-out'
-  | 'joining'
-  | 'error';
+type PageState = 'loading' | 'invalid' | 'logged-out' | 'joining' | 'error';
 
-// Minimal inline auth form — login or register, toggled by mode prop
 function InlineAuthForm({
   mode,
   onSuccess,
@@ -39,7 +34,6 @@ function InlineAuthForm({
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const credential = await createUserWithEmailAndPassword(auth, email, password);
-        // Set viewer claim for new account
         const idToken = await credential.user.getIdToken();
         await fetch('/api/auth/set-viewer-claim', {
           method: 'POST',
@@ -50,12 +44,11 @@ function InlineAuthForm({
       }
       onSuccess();
     } catch (err: unknown) {
-      // Firebase v9+ uses err.code (e.g. "auth/invalid-credential") not err.message substrings.
       const code = (err as { code?: string }).code ?? '';
       setError(
         code === 'auth/invalid-credential' ||
-        code === 'auth/wrong-password' ||
-        code === 'auth/user-not-found'
+          code === 'auth/wrong-password' ||
+          code === 'auth/user-not-found'
           ? 'Fel e-post eller lösenord.'
           : code === 'auth/email-already-in-use'
           ? 'Det finns redan ett konto med den e-postadressen.'
@@ -67,9 +60,15 @@ function InlineAuthForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
       <div>
-        <label htmlFor="email" className="text-sm text-[#6B7280]">E-postadress</label>
+        <label
+          htmlFor="email"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          E-post
+        </label>
         <input
           id="email"
           type="email"
@@ -77,11 +76,17 @@ function InlineAuthForm({
           aria-required="true"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mt-1 border border-[#E5D5CC] rounded-md px-3 py-2 text-base text-[#171717] bg-white"
+          className="night-input"
         />
       </div>
       <div>
-        <label htmlFor="password" className="text-sm text-[#6B7280]">Lösenord</label>
+        <label
+          htmlFor="password"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          Lösenord
+        </label>
         <input
           id="password"
           type="password"
@@ -89,28 +94,29 @@ function InlineAuthForm({
           aria-required="true"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mt-1 border border-[#E5D5CC] rounded-md px-3 py-2 text-base text-[#171717] bg-white"
+          className="night-input"
         />
       </div>
-      {error && <p role="alert" className="text-[#DC2626] text-sm">{error}</p>}
-      <button
-        type="submit"
-        disabled={saving}
-        className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-3 font-semibold min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
+      {error && (
+        <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--color-pink)' }}>
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={saving} className="neon-cta mt-1">
         {saving
-          ? 'Laddar\u2026'
+          ? 'Laddar…'
           : mode === 'login'
-          ? 'Logga in och g\u00e5 med'
-          : 'Skapa konto och g\u00e5 med'}
+          ? 'Logga in och gå med'
+          : 'Skapa konto och gå med'}
       </button>
       <button
         type="button"
         onClick={onSwitchMode}
-        className="text-sm text-[#6B7280] hover:underline"
+        className="text-[13px] mt-1"
+        style={{ color: 'var(--color-cyan)' }}
       >
         {mode === 'login'
-          ? 'Inget konto? Skapa ett h\u00e4r'
+          ? 'Inget konto? Skapa ett här'
           : 'Har du redan ett konto? Logga in'}
       </button>
     </form>
@@ -128,20 +134,14 @@ export default function InvitePage({
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  // Guard: only let useEffect trigger redeemToken on the initial auth state resolution.
-  // If auth happens via the inline form (login or register), handleAuthSuccess calls
-  // redeemToken explicitly instead — preventing a race where onIdTokenChanged fires
-  // mid-form and triggers redemption before set-viewer-claim has completed.
   const initialAuthCheckedRef = useRef(false);
 
-  // After auth state resolves, determine what to show
   useEffect(() => {
     if (loading) return;
     if (initialAuthCheckedRef.current) return;
     initialAuthCheckedRef.current = true;
 
     if (user) {
-      // User was already logged in when the page loaded — attempt redemption immediately
       setPageState('joining');
       redeemToken();
     } else {
@@ -172,13 +172,10 @@ export default function InvitePage({
       const data = await res.json();
 
       if (data.alreadyViewer) {
-        // Already a viewer — redirect immediately (no token refresh needed)
         router.push(`/viewer/${data.wishlistId}`);
         return;
       }
 
-      // Force-refresh token so new claim is available to Firestore rules, then
-      // sync the updated role into AuthProvider context via refreshRole().
       await auth.currentUser?.getIdToken(/* forceRefresh = */ true);
       await refreshRole();
       router.push(`/viewer/${data.wishlistId}`);
@@ -188,72 +185,96 @@ export default function InvitePage({
   }
 
   function handleAuthSuccess() {
-    // Called after the inline form completes login or registration (including set-viewer-claim).
-    // We drive redemption explicitly here instead of relying on useEffect, which is guarded
-    // to only run once on initial load to avoid a race with set-viewer-claim.
     setPageState('joining');
     redeemToken();
   }
 
   if (pageState === 'loading' || loading || pageState === 'joining') {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex items-center justify-center">
-        <p className="text-[#6B7280]">Laddar\u2026</p>
-      </main>
+      <NightShell twinkleCount={20}>
+        <div className="flex-1 flex items-center justify-center">
+          <p style={{ color: 'var(--color-muted)' }}>Laddar…</p>
+        </div>
+      </NightShell>
     );
   }
 
   if (pageState === 'invalid') {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex flex-col items-center justify-center gap-4 px-4 py-16">
-        <h1 className="text-[28px] font-semibold text-[#171717] text-center leading-[1.2]">
-          L\u00e4nken \u00e4r inte l\u00e4ngre giltig
-        </h1>
-        <p role="alert" className="text-base text-[#6B7280] text-center max-w-sm">
-          Be den som skickade l\u00e4nken att skapa en ny delningsl\u00e4nk.
-        </p>
-      </main>
+      <NightShell twinkleCount={20}>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <Molly size={80} mood="sleepy" eyeColor="#0F1330" blushColor="#FF7AB8" />
+          <h1 className="font-display text-[24px] font-bold gradient-text">
+            Länken är inte längre giltig
+          </h1>
+          <p role="alert" className="text-[14px] max-w-sm" style={{ color: 'var(--color-muted)' }}>
+            Be den som skickade länken att skapa en ny delningslänk.
+          </p>
+        </div>
+      </NightShell>
     );
   }
 
   if (pageState === 'error') {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex flex-col items-center justify-center gap-4 px-4 py-16">
-        <h1 className="text-[28px] font-semibold text-[#171717] text-center leading-[1.2]">
-          N\u00e5got gick fel
-        </h1>
-        <p role="alert" className="text-base text-[#6B7280] text-center max-w-sm">
-          Kunde inte g\u00e5 med i \u00f6nskelistan. F\u00f6rs\u00f6k igen om en stund.
-        </p>
-        <button
-          onClick={() => { setPageState('joining'); redeemToken(); }}
-          className="text-[#F97316] hover:underline text-sm min-h-[44px]"
-        >
-          F\u00f6rs\u00f6k igen
-        </button>
-      </main>
+      <NightShell twinkleCount={20}>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <Molly size={80} mood="thinking" eyeColor="#0F1330" blushColor="#FF7AB8" />
+          <h1 className="font-display text-[24px] font-bold gradient-text">Något gick fel</h1>
+          <p role="alert" className="text-[14px] max-w-sm" style={{ color: 'var(--color-muted)' }}>
+            Kunde inte gå med i önskelistan. Försök igen om en stund.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setPageState('joining');
+              redeemToken();
+            }}
+            className="neon-cta-outline"
+          >
+            Försök igen
+          </button>
+        </div>
+      </NightShell>
     );
   }
 
-  // logged-out state — show welcoming join page with inline auth
   return (
-    <main className="min-h-screen bg-[#FFF9F5] flex flex-col items-center justify-center gap-8 px-4 py-16">
-      <div className="text-center max-w-md">
-        <h1 className="text-[28px] font-semibold text-[#171717] leading-[1.2]">
-          Du har bjudits in till en \u00f6nskelista
+    <NightShell dense twinkleCount={28} auroraColor="#B28BFF" auroraTop={120} auroraRight="50%">
+      <div className="flex-1 flex flex-col items-center px-6 pt-14 pb-10">
+        <div className="relative anim-molly mb-4">
+          <div
+            aria-hidden="true"
+            className="absolute -inset-3 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(125,227,255,0.55) 0%, transparent 70%)',
+              filter: 'blur(12px)',
+            }}
+          />
+          <Molly size={80} mood="excited" eyeColor="#0F1330" blushColor="#FF7AB8" style={{ position: 'relative' }} />
+        </div>
+        <h1 className="font-display font-bold text-[26px] gradient-text text-center leading-tight">
+          Du har bjudits in
+          <br />till en önskelista
         </h1>
-        <p className="mt-4 text-base text-[#6B7280]">
-          Skapa ett konto eller logga in f\u00f6r att koordinera ink\u00f6p utan att f\u00f6rst\u00f6ra \u00f6verraskingen.
+        <p className="mt-3 text-[13px] text-center max-w-xs" style={{ color: 'var(--color-muted)' }}>
+          Logga in eller skapa ett konto för att se listan och koordinera inköp utan att förstöra överraskningen.
         </p>
-      </div>
 
-      <div className="w-full max-w-sm bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl shadow-sm p-6">
-        <InlineAuthForm
-          mode={authMode}
-          onSuccess={handleAuthSuccess}
-          onSwitchMode={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-        />
+        <div className="w-full max-w-sm mt-7 night-card p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkle size={14} color="#FFD36E" />
+            <h2 className="font-display font-semibold text-[16px]">
+              {authMode === 'login' ? 'Logga in' : 'Skapa konto'}
+            </h2>
+          </div>
+          <InlineAuthForm
+            mode={authMode}
+            onSuccess={handleAuthSuccess}
+            onSwitchMode={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+          />
+        </div>
       </div>
-    </main>
+    </NightShell>
   );
 }

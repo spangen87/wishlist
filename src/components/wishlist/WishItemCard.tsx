@@ -4,6 +4,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { updateWishItem, deleteWishItem } from '@/lib/firebase/wishlist';
 import type { WishItemDoc } from '@/types/firestore';
+import { Star, Heart, GripDots, Pencil, Trash } from '@/components/galaxy';
+
+const ACCENTS = ['#7DE3FF', '#FF7AB8', '#FFD36E', '#B28BFF', '#85F2CA'];
 
 function isSafeUrl(url: string): boolean {
   return url.startsWith('https://') || url.startsWith('http://');
@@ -13,15 +16,16 @@ interface WishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
   totalFavorites: number;
+  index?: number;
 }
 
-export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardProps) {
+export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: WishItemCardProps) {
+  const accent = ACCENTS[index % ACCENTS.length];
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [favoriteError, setFavoriteError] = useState(false);
 
-  // Edit form state
   const [editTitle, setEditTitle] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editProductUrl, setEditProductUrl] = useState('');
@@ -106,7 +110,6 @@ export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardP
   async function handleConfirmDelete() {
     try {
       await deleteWishItem(wishlistId, item.id);
-      // item disappears via onSnapshot — no local state cleanup needed
     } catch {
       setEditSaveError('Något gick fel. Försök igen.');
     }
@@ -121,7 +124,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardP
     try {
       await updateWishItem(wishlistId, item.id, { isFavorite: !item.isFavorite });
     } catch {
-      // Silent fail — optimistic UI not used here, onSnapshot corrects state
+      // silent
     }
   }
 
@@ -131,94 +134,116 @@ export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardP
       style={style}
       {...attributes}
       role="listitem"
-      className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl shadow-sm hover:shadow-md transition-shadow p-4 flex gap-3 items-start"
+      className="night-card relative overflow-hidden"
     >
-      {/* Drag handle — ONLY this element has touch-action:none */}
-      <button
-        ref={setActivatorNodeRef}
-        {...listeners}
-        aria-label="Dra för att ändra ordning"
-        style={{ touchAction: 'none' }}
-        className="flex-shrink-0 flex items-center justify-center w-6 min-h-[44px] text-gray-400 cursor-grab active:cursor-grabbing"
-      >
-        <svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" aria-hidden="true">
-          <circle cx="3" cy="4" r="1.5"/><circle cx="9" cy="4" r="1.5"/>
-          <circle cx="3" cy="10" r="1.5"/><circle cx="9" cy="10" r="1.5"/>
-          <circle cx="3" cy="16" r="1.5"/><circle cx="9" cy="16" r="1.5"/>
-        </svg>
-      </button>
+      {/* Glow stripe */}
+      <span
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0"
+        style={{ width: 3, background: accent, boxShadow: `0 0 12px ${accent}` }}
+      />
 
       {editMode ? (
-        /* Edit mode — form takes full content width */
-        <form onSubmit={handleSave} className="flex-1 flex flex-col gap-3">
+        <form onSubmit={handleSave} className="flex flex-col gap-3 p-4 pl-5">
           <div>
-            <label htmlFor={`title-${item.id}`} className="text-sm text-gray-500">Titel</label>
+            <label
+              htmlFor={`title-${item.id}`}
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-muted)' }}
+            >
+              Titel
+            </label>
             <input
               id={`title-${item.id}`}
               type="text"
               required
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-xl font-semibold text-[#171717] bg-white mt-1"
+              className="night-input"
             />
-            {editTitleError && <p role="alert" className="text-red-600 text-sm mt-1">Titel krävs</p>}
+            {editTitleError && (
+              <p role="alert" className="text-[12px] mt-1" style={{ color: 'var(--color-pink)' }}>
+                Titel krävs
+              </p>
+            )}
           </div>
           <div>
-            <label htmlFor={`price-${item.id}`} className="text-sm text-gray-500">Ungefärligt pris (kr)</label>
+            <label
+              htmlFor={`price-${item.id}`}
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-cyan)' }}
+            >
+              Pris (kr)
+            </label>
             <input
               id={`price-${item.id}`}
               type="number"
               min="0"
               value={editPrice}
               onChange={(e) => setEditPrice(e.target.value)}
-              className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+              className="night-input"
             />
           </div>
           <div>
-            <label htmlFor={`productUrl-${item.id}`} className="text-sm text-gray-500">Länk till produkt</label>
+            <label
+              htmlFor={`productUrl-${item.id}`}
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-gold)' }}
+            >
+              Länk
+            </label>
             <input
               id={`productUrl-${item.id}`}
               type="url"
               value={editProductUrl}
               onChange={(e) => setEditProductUrl(e.target.value)}
-              className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+              className="night-input font-mono text-[12px]"
             />
           </div>
           <div>
-            <label htmlFor={`imageUrl-${item.id}`} className="text-sm text-gray-500">Bildlänk</label>
+            <label
+              htmlFor={`imageUrl-${item.id}`}
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-violet)' }}
+            >
+              Bildlänk
+            </label>
             <input
               id={`imageUrl-${item.id}`}
               type="url"
               value={editImageUrl}
               onChange={(e) => setEditImageUrl(e.target.value)}
-              className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white mt-1"
+              className="night-input font-mono text-[12px]"
             />
           </div>
           <div>
-            <label htmlFor={`note-${item.id}`} className="text-sm text-gray-500">Anteckning</label>
+            <label
+              htmlFor={`note-${item.id}`}
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-mint)' }}
+            >
+              Anteckning
+            </label>
             <textarea
               id={`note-${item.id}`}
               rows={3}
               value={editNote}
               onChange={(e) => setEditNote(e.target.value)}
-              className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-base text-[#171717] bg-white mt-1 resize-none"
+              className="night-input italic resize-none"
+              style={{ boxShadow: '0 0 16px rgba(133,242,202,0.18)' }}
             />
           </div>
-          {editSaveError && <p role="alert" className="text-red-600 text-sm">Något gick fel. Försök igen.</p>}
-          <div className="flex gap-3 flex-wrap items-center">
-            <button
-              type="submit"
-              disabled={editSaving}
-              className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Spara önskemål
+          {editSaveError && (
+            <p role="alert" className="text-[12px]" style={{ color: 'var(--color-pink)' }}>
+              {editSaveError}
+            </p>
+          )}
+          <div className="flex gap-3 flex-wrap items-center mt-1">
+            <button type="submit" disabled={editSaving} className="neon-cta">
+              Spara
             </button>
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="text-gray-500 hover:underline px-4 py-2 min-h-[44px]"
-            >
-              Avbryt redigering
+            <button type="button" onClick={handleCancelEdit} className="neon-cta-outline">
+              Avbryt
             </button>
           </div>
           <div className="mt-2">
@@ -226,24 +251,29 @@ export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardP
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-600 text-sm hover:underline min-h-[44px]"
+                className="text-[13px] font-semibold flex items-center gap-1.5"
+                style={{ color: 'var(--color-pink)' }}
               >
-                Ta bort önskemål
+                <Trash size={12} /> Ta bort önskemål
               </button>
             ) : (
               <div role="alert" className="flex gap-3 items-center flex-wrap">
-                <span className="text-sm text-[#171717]">Är du säker?</span>
+                <span className="text-[13px]" style={{ color: 'var(--color-ink)' }}>
+                  Är du säker?
+                </span>
                 <button
                   type="button"
                   onClick={handleConfirmDelete}
-                  className="text-red-600 text-sm hover:underline min-h-[44px]"
+                  className="text-[13px] font-bold"
+                  style={{ color: 'var(--color-pink)' }}
                 >
                   Ja, ta bort
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="text-gray-500 text-sm hover:underline min-h-[44px]"
+                  className="text-[13px]"
+                  style={{ color: 'var(--color-muted)' }}
                 >
                   Nej, behåll
                 </button>
@@ -252,64 +282,125 @@ export function WishItemCard({ item, wishlistId, totalFavorites }: WishItemCardP
           </div>
         </form>
       ) : (
-        /* Read mode */
-        <>
-          {/* Content area */}
+        <div className="flex gap-3 items-center p-3 pl-4">
+          {/* Drag handle */}
+          <button
+            ref={setActivatorNodeRef}
+            {...listeners}
+            aria-label="Dra för att ändra ordning"
+            style={{ touchAction: 'none' }}
+            className="shrink-0 flex items-center justify-center min-h-[44px] w-5 cursor-grab active:cursor-grabbing"
+          >
+            <GripDots size={18} color="rgba(155,154,198,0.7)" />
+          </button>
+
+          {/* Thumbnail */}
+          {item.imageUrl && !imageLoadError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt={item.title}
+              width={56}
+              height={56}
+              className="shrink-0 object-cover"
+              style={{ width: 56, height: 56, borderRadius: 12, background: 'rgba(255,255,255,0.05)' }}
+              onError={() => setImageLoadError(true)}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="shrink-0"
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 12,
+                background: `linear-gradient(135deg, ${accent}25, ${accent}08)`,
+                border: `1px solid ${accent}40`,
+              }}
+            />
+          )}
+
+          {/* Body */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2">
-              <h2 className="text-xl font-semibold text-[#171717] leading-tight flex-1">{item.title}</h2>
+              <h2
+                className="font-display font-semibold text-[15px] leading-tight flex-1"
+                style={{ color: 'var(--color-ink)' }}
+              >
+                {item.title}
+              </h2>
               <button
+                type="button"
                 onClick={handleToggleFavorite}
                 aria-label={item.isFavorite ? `Ta bort ${item.title} från favoriter` : `Markera ${item.title} som favorit`}
-                className="flex-shrink-0 text-xl leading-none text-[#F97316] hover:scale-110 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="shrink-0 flex items-center justify-center"
+                style={{ width: 36, height: 36 }}
               >
-                {item.isFavorite ? '★' : '☆'}
+                <Heart
+                  size={16}
+                  color={item.isFavorite ? '#FF7AB8' : 'rgba(255,255,255,0.25)'}
+                  className={item.isFavorite ? 'anim-heart' : ''}
+                  style={item.isFavorite ? { filter: 'drop-shadow(0 0 6px rgba(255,122,184,0.7))' } : undefined}
+                />
               </button>
             </div>
-            {favoriteError && (
-              <p role="alert" className="text-sm text-[#DC2626] mt-1">Du kan ha max 5 favoriter.</p>
-            )}
-            {item.price !== undefined && (
-              <span className="text-sm text-gray-500">~{item.price} kr</span>
-            )}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {item.price !== undefined && (
+                <span
+                  className="text-[11px] font-bold font-tabular"
+                  style={{ color: accent }}
+                >
+                  ~{item.price} kr
+                </span>
+              )}
+              {item.note && (
+                <span
+                  className="text-[11px] italic truncate"
+                  style={{ color: 'var(--color-muted)', maxWidth: '60%' }}
+                >
+                  &ldquo;{item.note}&rdquo;
+                </span>
+              )}
+            </div>
             {item.productUrl && isSafeUrl(item.productUrl) && (
               <a
                 href={item.productUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-gray-500 truncate block max-w-full hover:underline"
+                className="block mt-1 text-[11px] font-mono truncate hover:underline"
+                style={{ color: 'var(--color-muted)' }}
               >
                 {item.productUrl}
               </a>
             )}
-            {item.note && (
-              <p className="text-base text-[#171717] line-clamp-3">{item.note}</p>
+            {favoriteError && (
+              <p role="alert" className="text-[11px] mt-1" style={{ color: 'var(--color-pink)' }}>
+                Du kan ha max 5 favoriter.
+              </p>
             )}
           </div>
 
-          {/* Right column: thumbnail + Redigera button — read mode only */}
-          <div className="flex-shrink-0 flex flex-col items-end gap-2">
-            {item.imageUrl && !imageLoadError ? (
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                width={64}
-                height={64}
-                className="w-16 h-16 rounded-md object-cover"
-                onError={() => setImageLoadError(true)}
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-md bg-[#E5D5CC]" aria-hidden="true" />
-            )}
+          {/* Right column: star + edit */}
+          <div className="shrink-0 flex flex-col items-center gap-2">
+            <span className="anim-star-pop" style={{ animationDelay: `${index * 0.4}s` }}>
+              <Star size={14} color={accent} style={{ filter: `drop-shadow(0 0 4px ${accent})` }} />
+            </span>
             <button
+              type="button"
               onClick={handleStartEdit}
               aria-label={`Redigera ${item.title}`}
-              className="text-sm text-[#F97316] hover:underline min-h-[44px] flex items-center"
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 32,
+                height: 32,
+                background: 'rgba(255,255,255,0.04)',
+                color: 'var(--color-muted)',
+              }}
             >
-              Redigera
+              <Pencil size={12} />
             </button>
           </div>
-        </>
+        </div>
       )}
     </li>
   );

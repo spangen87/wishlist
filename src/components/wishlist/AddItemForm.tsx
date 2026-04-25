@@ -1,12 +1,20 @@
 'use client';
 import { useState } from 'react';
 import { addWishItem } from '@/lib/firebase/wishlist';
+import { Sparkle } from '@/components/galaxy';
 
 interface AddItemFormProps {
   wishlistId: string;
   lastPosition: string | null;
   onClose: () => void;
 }
+
+const FIELDS = [
+  { id: 'title', label: 'Vad önskar du?', accent: '#FF7AB8' },
+  { id: 'price', label: 'Ungefärligt pris', accent: '#7DE3FF' },
+  { id: 'productUrl', label: 'Länk', accent: '#FFD36E' },
+  { id: 'imageUrl', label: 'Bild', accent: '#B28BFF' },
+] as const;
 
 export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormProps) {
   const [title, setTitle] = useState('');
@@ -47,86 +55,97 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl p-4 flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="title" className="text-sm text-gray-500">Titel</label>
+  function renderField(id: (typeof FIELDS)[number]['id'], label: string, accent: string) {
+    const isPrice = id === 'price';
+    const isUrl = id === 'productUrl' || id === 'imageUrl';
+    const value =
+      id === 'title'
+        ? title
+        : id === 'price'
+        ? price
+        : id === 'productUrl'
+        ? productUrl
+        : imageUrl;
+    const setValue =
+      id === 'title'
+        ? (v: string) => setTitle(v)
+        : id === 'price'
+        ? (v: string) => setPrice(v === '' ? '' : Number(v))
+        : id === 'productUrl'
+        ? (v: string) => setProductUrl(v)
+        : (v: string) => setImageUrl(v);
+    return (
+      <div key={id}>
+        <label
+          htmlFor={`add-${id}`}
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: accent }}
+        >
+          {label}
+        </label>
         <input
-          id="title"
-          type="text"
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-xl font-semibold text-[#171717] bg-white"
+          id={`add-${id}`}
+          type={isPrice ? 'number' : isUrl ? 'url' : 'text'}
+          min={isPrice ? '0' : undefined}
+          required={id === 'title'}
+          value={value as string | number}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={
+            id === 'imageUrl'
+              ? 'Klistra in bildlänk'
+              : id === 'productUrl'
+              ? 'https://…'
+              : undefined
+          }
+          className={`night-input ${isUrl ? 'font-mono text-[12px]' : ''}`}
+          style={{ boxShadow: `inset 0 0 0 1px ${accent}33` }}
         />
-        {titleError && (
-          <p role="alert" className="text-red-600 text-sm">Titel krävs</p>
+        {id === 'title' && titleError && (
+          <p role="alert" className="text-[12px] mt-1" style={{ color: 'var(--color-pink)' }}>
+            {titleError}
+          </p>
         )}
       </div>
+    );
+  }
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="price" className="text-sm text-gray-500">Ungefärligt pris (kr)</label>
-        <input
-          id="price"
-          type="number"
-          min="0"
-          value={price}
-          onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white"
-        />
-      </div>
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="night-card flex flex-col gap-4 p-5"
+    >
+      {FIELDS.map((f) => renderField(f.id, f.label, f.accent))}
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="productUrl" className="text-sm text-gray-500">Länk till produkt</label>
-        <input
-          id="productUrl"
-          type="url"
-          value={productUrl}
-          onChange={(e) => setProductUrl(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="imageUrl" className="text-sm text-gray-500">Bildlänk</label>
-        <input
-          id="imageUrl"
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-sm text-[#171717] bg-white"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="note" className="text-sm text-gray-500">Anteckning</label>
+      <div>
+        <label
+          htmlFor="add-note"
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: '#85F2CA' }}
+        >
+          Anteckning
+        </label>
         <textarea
-          id="note"
+          id="add-note"
           rows={3}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full border border-[#E5D5CC] rounded-md px-3 py-2 text-base text-[#171717] bg-white resize-none"
+          className="night-input italic resize-none"
+          style={{ boxShadow: '0 0 16px rgba(133,242,202,0.18)', borderColor: 'rgba(133,242,202,0.4)' }}
         />
       </div>
 
       {saveError && (
-        <p role="alert" className="text-red-600 text-sm">Något gick fel. Försök igen.</p>
+        <p role="alert" className="text-[12px]" style={{ color: 'var(--color-pink)' }}>
+          {saveError}
+        </p>
       )}
 
-      <div className="flex gap-3 flex-wrap">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Lägg till önskemål
+      <div className="flex gap-3 flex-wrap mt-1">
+        <button type="submit" disabled={saving} className="neon-cta">
+          <Sparkle size={14} color="#fff" /> Tänd stjärnan
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-gray-500 hover:underline px-4 py-2 min-h-[44px]"
-        >
-          Avbryt tillägg
+        <button type="button" onClick={onClose} className="neon-cta-outline">
+          Avbryt
         </button>
       </div>
     </form>

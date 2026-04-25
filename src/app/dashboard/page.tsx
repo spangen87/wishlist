@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { subscribeToViewerWishlists, subscribeToParentWishlists } from '@/lib/firebase/viewer';
 import { WishlistDashboardCard } from '@/components/viewer/WishlistDashboardCard';
 import { ParentWishlistDashboardCard } from '@/components/viewer/ParentWishlistDashboardCard';
+import { LightShell, Molly, Plus, LogOut } from '@/components/galaxy';
 import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistStats {
@@ -28,13 +29,11 @@ export default function DashboardPage() {
   const fetchedNamesRef = useRef(new Set<string>());
   const statsUnsubsRef = useRef(new Map<string, () => void>());
 
-  // Auth + role redirects
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
-  // Fetch child display name — stable ref prevents unnecessary re-subscriptions
   const fetchChildName = useCallback(async (uid: string) => {
     if (fetchedNamesRef.current.has(uid)) return;
     fetchedNamesRef.current.add(uid);
@@ -48,7 +47,6 @@ export default function DashboardPage() {
     } catch { /* silent */ }
   }, []);
 
-  // Subscribe to wishlist stats (item count + purchased count) for a single wishlist
   const subscribeToStats = useCallback((wishlistId: string) => {
     const itemUnsub = onSnapshot(
       collection(db, 'wishlists', wishlistId, 'items'),
@@ -72,7 +70,6 @@ export default function DashboardPage() {
     return () => { itemUnsub(); statusUnsub(); };
   }, []);
 
-  // Subscribe to both parent and viewer wishlists
   useEffect(() => {
     if (loading || !user) return;
 
@@ -114,7 +111,6 @@ export default function DashboardPage() {
       statsUnsubsRef.current.forEach((unsub) => unsub());
       statsUnsubsRef.current.clear();
     };
-  // fetchChildName and subscribeToStats are stable via useCallback — intentionally omitted
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user]);
 
@@ -155,53 +151,81 @@ export default function DashboardPage() {
 
   if (loading || dataLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFF9F5]">
-        <p className="text-[#6B7280]">Laddar…</p>
-      </main>
+      <LightShell>
+        <div className="flex min-h-[100dvh] items-center justify-center">
+          <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
+        </div>
+      </LightShell>
     );
   }
 
   if (!user) return null;
 
+  const userInitial = (user.email ?? '?').slice(0, 1).toUpperCase();
+
   return (
-    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-[#171717]">Mina önskelistor</h1>
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={handleLogout}
-              className="text-sm text-[#6B7280] hover:underline min-h-[44px]"
-            >
-              Logga ut
-            </button>
-            {role !== 'child' && (
+    <LightShell>
+      {/* Header */}
+      <header
+        className="px-5 pt-6 pb-5 flex items-start justify-between gap-3"
+        style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+      >
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
+            Önskestjärnan
+          </p>
+          <h1 className="font-display font-bold text-[24px] mt-1" style={{ color: 'var(--color-ink-light)' }}>
+            Mina önskelistor
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <Molly size={36} mood="happy" eyeColor="#1C1B2E" blushColor="#FF7AB8" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Logga ut"
+            className="flex items-center justify-center min-h-[40px] min-w-[40px] rounded-full"
+            style={{ color: 'var(--color-muted-light)', background: 'var(--color-bg-light)' }}
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </header>
+
+      <div className="px-4 pt-5 pb-12 mx-auto w-full max-w-2xl">
+        {/* Section: Mina barn */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
+              Mina barn
+            </h2>
+            {parentWishlists.length > 0 && (
               <button
-                onClick={handleDeleteSelf}
-                className="text-sm text-[#DC2626] hover:underline"
+                type="button"
+                onClick={() => router.push('/add-child')}
+                className="text-[12px] font-bold flex items-center gap-1"
+                style={{ color: 'var(--color-accent)' }}
               >
-                Ta bort mitt konto
+                <Plus size={12} /> Lägg till
               </button>
             )}
           </div>
-        </div>
 
-        {/* Section 1: Mina barn */}
-        <section>
-          <h2 className="text-lg font-semibold text-[#171717] mb-4">Mina barn</h2>
           {parentWishlists.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-[#E5D5CC] rounded-2xl">
-              <p className="text-[#6B7280] text-sm">Du har inga barn tillagda ännu.</p>
-              <button
-                onClick={() => router.push('/add-child')}
-                className="mt-3 text-[#F97316] font-semibold text-sm hover:underline min-h-[44px]"
-              >
-                Lägg till ett barn →
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/add-child')}
+              className="w-full text-center px-4 py-5 rounded-xl text-[14px] font-bold"
+              style={{
+                color: 'var(--color-accent)',
+                border: '1.5px dashed var(--color-border-light)',
+                background: '#fff',
+              }}
+            >
+              + Lägg till ditt första barn
+            </button>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {parentWishlists.map((wl) => (
                 <ParentWishlistDashboardCard
                   key={wl.id}
@@ -211,28 +235,40 @@ export default function DashboardPage() {
                   purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
                 />
               ))}
+              <button
+                type="button"
+                onClick={() => router.push('/add-child')}
+                className="text-center px-4 py-5 rounded-xl text-[13px] font-bold flex items-center justify-center"
+                style={{
+                  color: 'var(--color-accent)',
+                  border: '1.5px dashed var(--color-border-light)',
+                  background: '#fff',
+                  minHeight: 90,
+                }}
+              >
+                + Lägg till barn
+              </button>
             </div>
-          )}
-          {parentWishlists.length > 0 && (
-            <button
-              onClick={() => router.push('/add-child')}
-              className="mt-4 border border-[#E5D5CC] rounded-xl px-4 py-2 text-sm font-bold text-[#171717] hover:bg-[#FFF0E8] min-h-[44px] transition-colors"
-            >
-              Lägg till barn
-            </button>
           )}
         </section>
 
-        {/* Divider */}
-        <div className="my-8 border-t border-[#E5D5CC]" />
-
-        {/* Section 2: Jag är inbjuden till */}
+        {/* Section: Inbjuden till */}
         <section>
-          <h2 className="text-lg font-semibold text-[#171717] mb-4">Jag är inbjuden till</h2>
+          <h2
+            className="text-[11px] font-bold tracking-caps mb-3 px-1"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            Inbjuden till
+          </h2>
           {viewerWishlists.length === 0 ? (
-            <p className="text-[#6B7280] text-sm">Du är inte inbjuden till några önskelistor.</p>
+            <p
+              className="text-[13px] px-1"
+              style={{ color: 'var(--color-muted-light)' }}
+            >
+              Du är inte inbjuden till några önskelistor.
+            </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {viewerWishlists.map((wl) => (
                 <WishlistDashboardCard
                   key={wl.id}
@@ -245,7 +281,23 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
+
+        {role !== 'child' && (
+          <div className="mt-10 text-center">
+            <button
+              type="button"
+              onClick={handleDeleteSelf}
+              className="text-[12px]"
+              style={{ color: 'var(--color-destructive)' }}
+            >
+              Ta bort mitt konto
+            </button>
+            <p className="mt-1 text-[10px]" style={{ color: 'var(--color-muted-light)' }}>
+              {userInitial} · {user.email}
+            </p>
+          </div>
+        )}
       </div>
-    </main>
+    </LightShell>
   );
 }

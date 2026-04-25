@@ -11,6 +11,7 @@ import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 import Link from 'next/link';
+import { LightShell, ArrowLeft, Cog, Plus, Pencil, Heart, Calendar } from '@/components/galaxy';
 
 export default function ViewerWishlistPage({
   params,
@@ -27,7 +28,6 @@ export default function ViewerWishlistPage({
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Parent-specific state
   const [wishlistTitle, setWishlistTitle] = useState<string>('');
   const [isParent, setIsParent] = useState(false);
   const [occasion, setOccasion] = useState<{ name: string; date: string } | null>(null);
@@ -37,13 +37,11 @@ export default function ViewerWishlistPage({
   const [renameError, setRenameError] = useState<string | null>(null);
   const [addItemError, setAddItemError] = useState<string | null>(null);
 
-  // Auth guard
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
-  // Fetch display name for a UID — cached in displayNames map
   const fetchDisplayName = useCallback(async (uid: string) => {
     if (displayNames.has(uid)) return;
     try {
@@ -54,15 +52,13 @@ export default function ViewerWishlistPage({
         setDisplayNames((prev) => new Map(prev).set(uid, name));
       }
     } catch {
-      // Silently fail — fallback to UID
+      // silent
     }
   }, [displayNames]);
 
-  // Subscribe to items and purchaseStatus in parallel; read wishlist doc for parent check
   useEffect(() => {
     if (loading || !user) return;
 
-    // Read wishlist doc to get title and check parent access
     getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
       if (wishlistDoc.exists()) {
         const wlData = wishlistDoc.data();
@@ -73,7 +69,7 @@ export default function ViewerWishlistPage({
         setOccasion(wlData.occasion ?? null);
       }
     }).catch(() => {
-      // Silent — title and parent controls simply won't show
+      // silent
     });
 
     const unsubItems = subscribeToItems(wishlistId, (newItems) => {
@@ -83,7 +79,6 @@ export default function ViewerWishlistPage({
 
     const unsubStatus = subscribeToPurchaseStatus(wishlistId, (newStatuses) => {
       setStatuses(newStatuses);
-      // Fetch display names for any new purchasedBy UIDs
       Object.values(newStatuses).forEach((s) => {
         if (s.purchasedBy) fetchDisplayName(s.purchasedBy);
         if (s.reservedBy) fetchDisplayName(s.reservedBy);
@@ -132,7 +127,6 @@ export default function ViewerWishlistPage({
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      // Append ' 409' to message so ViewerWishItemCard can detect conflict errors
       throw new Error((body.error ?? 'API error') + (res.status === 409 ? ' 409' : ''));
     }
   }
@@ -182,51 +176,168 @@ export default function ViewerWishlistPage({
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#FFF9F5] flex flex-col items-center justify-center gap-4 px-4">
-        <p className="text-[#DC2626] text-base">{error}</p>
-        <button onClick={() => setError(null)} className="text-[#F97316] hover:underline text-sm min-h-[44px]">
-          Försök igen
-        </button>
-      </main>
+      <LightShell>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
+          <p className="text-[14px]" style={{ color: 'var(--color-destructive)' }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="light-cta-outline"
+          >
+            Försök igen
+          </button>
+        </div>
+      </LightShell>
+    );
+  }
+
+  const purchased = Object.values(statuses).filter((s) => !!s?.purchasedBy).length;
+  const total = items.length;
+  const progress = total > 0 ? Math.round((purchased / total) * 100) : 0;
+
+  const favoriteItems = items.filter((i) => i.isFavorite);
+  const otherItems = items.filter((i) => !i.isFavorite);
+
+  function renderCard(item: WishItemDoc) {
+    const statusDoc = statuses[item.id];
+    return (
+      <ViewerWishItemCard
+        key={item.id}
+        item={item}
+        wishlistId={wishlistId}
+        status={statusDoc}
+        currentUid={user!.uid}
+        onTogglePurchased={handleTogglePurchased}
+        onUpdateNote={handleUpdateNote}
+        onToggleReserved={handleToggleReserved}
+        purchaserName={
+          statusDoc?.purchasedBy
+            ? displayNames.get(statusDoc.purchasedBy) ?? '...'
+            : undefined
+        }
+        reserverName={
+          statusDoc?.reservedBy
+            ? displayNames.get(statusDoc.reservedBy) ?? '...'
+            : undefined
+        }
+        otherViewerNotes={
+          statusDoc?.viewerNotes
+            ? Object.entries(statusDoc.viewerNotes)
+                .filter(([uid]) => uid !== user!.uid)
+                .map(([uid, note]) => ({
+                  uid,
+                  displayName: displayNames.get(uid) ?? uid,
+                  note,
+                }))
+            : []
+        }
+      />
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#FFF9F5] px-4 py-8 sm:px-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            href="/dashboard"
-            className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
+    <LightShell>
+      {/* Top bar */}
+      <header
+        className="flex items-center justify-between gap-3 px-5 pt-6 pb-3"
+        style={{ background: '#fff' }}
+      >
+        <Link
+          href="/dashboard"
+          aria-label="Mina listor"
+          className="flex items-center gap-1.5 text-[13px] min-h-[40px]"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
+          <ArrowLeft size={16} /> Mina listor
+        </Link>
+        <Link
+          href={`/viewer/${wishlistId}/activity`}
+          className="text-[13px] font-semibold"
+          style={{ color: 'var(--color-accent)' }}
+        >
+          Aktivitet →
+        </Link>
+      </header>
+
+      <div
+        className="px-5 pb-4"
+        style={{ background: '#fff', borderBottom: '1px solid var(--color-border-light)' }}
+      >
+        {isParent && isRenaming ? (
+          <input
+            type="text"
+            value={renameValue}
+            autoFocus
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={handleRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRename();
+              if (e.key === 'Escape') {
+                setIsRenaming(false);
+                setRenameValue(wishlistTitle);
+              }
+            }}
+            className="light-input font-display text-[22px] font-bold"
+            aria-label="Redigera önskelistans namn"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={isParent ? () => setIsRenaming(true) : undefined}
+            className="font-display font-bold text-[24px] flex items-center gap-2 text-left"
+            style={{ color: 'var(--color-ink-light)', cursor: isParent ? 'pointer' : 'default' }}
+            aria-label={isParent ? 'Klicka för att byta namn' : undefined}
           >
-            ← Mina önskelistor
-          </Link>
-          <Link
-            href={`/viewer/${wishlistId}/activity`}
-            className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
+            {wishlistTitle || 'Namnlös önskelista'}
+            {isParent && <Pencil size={14} color="var(--color-muted-light)" />}
+          </button>
+        )}
+        {renameError && (
+          <p role="alert" className="mt-1 text-[12px]" style={{ color: 'var(--color-destructive)' }}>
+            {renameError}
+          </p>
+        )}
+
+        <div className="flex items-center gap-3 mt-3">
+          <span className="text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
+            {purchased} av {total} köpta
+          </span>
+          <div
+            className="flex-1 h-1 rounded-full overflow-hidden"
+            style={{ background: 'var(--color-border-light)' }}
+            aria-hidden="true"
           >
-            Visa aktivitetslogg
-          </Link>
+            <div
+              className="h-full"
+              style={{ width: `${progress}%`, background: 'var(--color-accent)', transition: 'width 220ms ease' }}
+            />
+          </div>
         </div>
 
-        {/* Occasion banner — visible to all viewers/parents */}
         {occasion && (() => {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const target = new Date(occasion.date + 'T00:00:00');
           const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);
           const formattedDate = target.toLocaleDateString('sv-SE', {
-            year: 'numeric', month: 'long', day: 'numeric',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
           });
           return (
-            <div className="mb-5 bg-[#FFF0E8] border border-[#E5D5CC] rounded-2xl px-4 py-3 flex flex-col gap-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-[#F97316]">{occasion.name}</span>
-                <span className="text-sm text-[#6B7280]">{formattedDate}</span>
-              </div>
+            <div
+              className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{ background: 'var(--color-accent-soft)' }}
+            >
+              <Calendar size={14} color="var(--color-accent)" />
+              <span className="text-[12px] font-bold" style={{ color: 'var(--color-accent)' }}>
+                {occasion.name}
+              </span>
+              <span className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+                · {formattedDate}
+              </span>
               {days >= 0 && days <= 30 && (
-                <span className="text-sm font-semibold text-[#F97316]">
+                <span className="text-[12px] font-bold ml-auto" style={{ color: 'var(--color-accent)' }}>
                   {days === 0 ? 'Idag!' : `Om ${days} ${days === 1 ? 'dag' : 'dagar'}!`}
                 </span>
               )}
@@ -234,151 +345,82 @@ export default function ViewerWishlistPage({
           );
         })()}
 
-        {/* Parent-only controls (D-14) — invisible to viewers (D-15) */}
         {isParent && (
-          <div className="mb-6 flex flex-col gap-4">
-            {/* Inline rename (D-24) */}
-            <div className="flex items-center gap-2">
-              {isRenaming ? (
-                <input
-                  type="text"
-                  value={renameValue}
-                  autoFocus
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onBlur={handleRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleRename();
-                    if (e.key === 'Escape') {
-                      setIsRenaming(false);
-                      setRenameValue(wishlistTitle);
-                    }
-                  }}
-                  className="flex-1 border border-[#E5D5CC] rounded-md px-3 py-2 text-xl font-semibold text-[#171717] bg-white"
-                  aria-label="Redigera önskelistans namn"
-                />
-              ) : (
-                <button
-                  onClick={() => setIsRenaming(true)}
-                  className="text-xl font-semibold text-[#171717] hover:text-[#F97316] transition-colors text-left"
-                  title="Klicka för att byta namn"
-                >
-                  {wishlistTitle || 'Namnlös önskelista'}
-                  <span className="ml-2 text-sm font-normal text-[#6B7280]">✎</span>
-                </button>
-              )}
-            </div>
-            {renameError && (
-              <p role="alert" className="text-[#DC2626] text-sm">
-                {renameError}
-              </p>
-            )}
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowAddItem((v) => !v)}
+              className="light-cta-outline flex items-center gap-1.5"
+            >
+              <Plus size={12} /> {showAddItem ? 'Avbryt' : 'Lägg till önskemål'}
+            </button>
+            <Link
+              href={`/wishlist/${wishlistId}/settings`}
+              className="flex items-center gap-1.5 text-[13px] px-3 py-2 min-h-[40px]"
+              style={{ color: 'var(--color-muted-light)' }}
+            >
+              <Cog size={14} /> Inställningar
+            </Link>
+          </div>
+        )}
+      </div>
 
-            {/* Settings link and add item toggle */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <button
-                onClick={() => setShowAddItem((v) => !v)}
-                className="bg-[#F97316] hover:bg-[#EA6C0A] text-white rounded-xl px-4 py-2 font-semibold text-sm min-h-[44px] transition-colors"
-              >
-                {showAddItem ? 'Avbryt' : 'Lägg till önskemål'}
-              </button>
-              <Link
-                href={`/wishlist/${wishlistId}/settings`}
-                className="text-sm text-[#6B7280] hover:underline min-h-[44px] flex items-center"
-              >
-                Inställningar
-              </Link>
-            </div>
-
-            {/* Inline add item form (D-14) */}
-            {showAddItem && (
-              <ParentAddItemForm
-                wishlistId={wishlistId}
-                onClose={() => setShowAddItem(false)}
-                onError={(msg) => setAddItemError(msg)}
-              />
-            )}
+      <div className="px-4 py-5 mx-auto w-full max-w-2xl">
+        {isParent && showAddItem && (
+          <div className="mb-4">
+            <ParentAddItemForm
+              wishlistId={wishlistId}
+              onClose={() => setShowAddItem(false)}
+              onError={(msg) => setAddItemError(msg)}
+            />
             {addItemError && (
-              <p role="alert" className="text-[#DC2626] text-sm">
+              <p role="alert" className="mt-2 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
                 {addItemError}
               </p>
             )}
           </div>
         )}
 
-        {/* Items */}
         {items.length === 0 ? (
-          <p className="text-base text-[#6B7280] text-center py-16">
+          <p
+            className="text-center py-16 text-[14px]"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
             Inga önskemål ännu.
           </p>
-        ) : (() => {
-          const favoriteItems = items.filter((i) => i.isFavorite);
-          const otherItems = items.filter((i) => !i.isFavorite);
-
-          function renderCard(item: WishItemDoc) {
-            const statusDoc = statuses[item.id];
-            return (
-              <ViewerWishItemCard
-                key={item.id}
-                item={item}
-                wishlistId={wishlistId}
-                status={statusDoc}
-                currentUid={user!.uid}
-                onTogglePurchased={handleTogglePurchased}
-                onUpdateNote={handleUpdateNote}
-                onToggleReserved={handleToggleReserved}
-                purchaserName={
-                  statusDoc?.purchasedBy
-                    ? displayNames.get(statusDoc.purchasedBy) ?? '...'
-                    : undefined
-                }
-                reserverName={
-                  statusDoc?.reservedBy
-                    ? displayNames.get(statusDoc.reservedBy) ?? '...'
-                    : undefined
-                }
-                otherViewerNotes={
-                  statusDoc?.viewerNotes
-                    ? Object.entries(statusDoc.viewerNotes)
-                        .filter(([uid]) => uid !== user!.uid)
-                        .map(([uid, note]) => ({
-                          uid,
-                          displayName: displayNames.get(uid) ?? uid,
-                          note,
-                        }))
-                    : []
-                }
-              />
-            );
-          }
-
-          return (
-            <>
-              {favoriteItems.length > 0 && (
-                <section className="mb-8">
-                  <h2 className="text-sm font-semibold text-[#F97316] uppercase tracking-wide mb-3">
-                    ★ Favoriter
+        ) : (
+          <>
+            {favoriteItems.length > 0 && (
+              <section className="mb-6">
+                <h2
+                  className="flex items-center gap-1.5 text-[10px] font-bold tracking-caps mb-3 px-1"
+                  style={{ color: 'var(--color-accent)' }}
+                >
+                  <Heart size={11} color="var(--color-accent)" /> Favoriter
+                </h2>
+                <ul role="list" className="flex flex-col gap-2.5">
+                  {favoriteItems.map(renderCard)}
+                </ul>
+              </section>
+            )}
+            {otherItems.length > 0 && (
+              <section>
+                {favoriteItems.length > 0 && (
+                  <h2
+                    className="text-[10px] font-bold tracking-caps mb-3 px-1"
+                    style={{ color: 'var(--color-muted-light)' }}
+                  >
+                    Övriga önskemål
                   </h2>
-                  <ul role="list" className="flex flex-col gap-6">
-                    {favoriteItems.map(renderCard)}
-                  </ul>
-                </section>
-              )}
-              {otherItems.length > 0 && (
-                <section>
-                  {favoriteItems.length > 0 && (
-                    <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide mb-3">
-                      Övriga önskemål
-                    </h2>
-                  )}
-                  <ul role="list" className="flex flex-col gap-6">
-                    {otherItems.map(renderCard)}
-                  </ul>
-                </section>
-              )}
-            </>
-          );
-        })()}
+                )}
+                <ul role="list" className="flex flex-col gap-2.5">
+                  {otherItems.map(renderCard)}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
       </div>
-    </main>
+    </LightShell>
   );
 }
