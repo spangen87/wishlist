@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const data = wishlistSnap.data()!;
   const token: string | undefined = data.currentInviteToken;
 
   if (!token) {
