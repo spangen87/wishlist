@@ -52,7 +52,7 @@ export default function RegisterPage() {
 
   return (
     <NightShell dense twinkleCount={28} auroraColor="#FF7AB8" auroraTop={120} auroraRight="50%">
-      <div className="flex flex-col items-center pt-14 pb-6 px-6 relative">
+      <div className="flex flex-col items-center app-page pb-6 relative" style={{ paddingTop: 'max(40px, calc(env(safe-area-inset-top) + 24px))' }}>
         <div className="relative anim-molly">
           <div
             aria-hidden="true"
@@ -72,7 +72,7 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div className="flex-1 px-6 pb-10">
+      <div className="flex-1 app-page app-bottom">
         <div className="mx-auto w-full max-w-sm">
           <form onSubmit={handleSubmit} className="night-card p-6 flex flex-col gap-4">
             <div>

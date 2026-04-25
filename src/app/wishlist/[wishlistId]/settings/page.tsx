@@ -544,7 +544,7 @@ export default function WishlistSettingsPage({
   return (
     <LightShell>
       <header
-        className="flex items-center gap-3 px-5 pt-6 pb-4"
+        className="flex items-center gap-3 app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link
@@ -560,7 +560,7 @@ export default function WishlistSettingsPage({
         </div>
       </header>
 
-      <div className="px-4 pt-5 pb-12 mx-auto w-full max-w-2xl flex flex-col gap-3">
+      <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl flex flex-col gap-3">
         <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />

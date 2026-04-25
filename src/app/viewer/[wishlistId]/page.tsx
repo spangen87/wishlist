@@ -239,7 +239,7 @@ export default function ViewerWishlistPage({
     <LightShell>
       {/* Top bar */}
       <header
-        className="flex items-center justify-between gap-3 px-5 pt-6 pb-3"
+        className="flex items-center justify-between gap-3 app-page app-top pb-3"
         style={{ background: '#fff' }}
       >
         <Link
@@ -260,7 +260,7 @@ export default function ViewerWishlistPage({
       </header>
 
       <div
-        className="px-5 pb-4"
+        className="app-page pb-4"
         style={{ background: '#fff', borderBottom: '1px solid var(--color-border-light)' }}
       >
         {isParent && isRenaming ? (
@@ -365,7 +365,7 @@ export default function ViewerWishlistPage({
         )}
       </div>
 
-      <div className="px-4 py-5 mx-auto w-full max-w-2xl">
+      <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl">
         {isParent && showAddItem && (
           <div className="mb-4">
             <ParentAddItemForm

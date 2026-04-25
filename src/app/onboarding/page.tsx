@@ -236,10 +236,10 @@ export default function OnboardingPage() {
 
   return (
     <LightShell>
-      <div className="px-5 pt-7">
+      <div className="app-page app-top">
         <StepDots step={state.step} />
       </div>
-      <div className="px-6 text-center">
+      <div className="app-page text-center">
         <p className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
           Steg {state.step} av 3
         </p>
@@ -251,7 +251,7 @@ export default function OnboardingPage() {
         </p>
       </div>
 
-      <div className="flex-1 px-6 pt-6 pb-10">
+      <div className="flex-1 app-page app-bottom pt-6">
         <div className="mx-auto w-full max-w-sm">
           {state.step === 1 && (
             <ChildAccountForm

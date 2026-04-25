@@ -53,7 +53,7 @@ interface LightShellProps {
 export function LightShell({ children, className }: LightShellProps) {
   return (
     <main
-      className={`min-h-[100dvh] flex flex-col ${className ?? ''}`}
+      className={`relative min-h-[100dvh] flex flex-col overflow-x-hidden ${className ?? ''}`}
       style={{ background: 'var(--color-bg-light)', color: 'var(--color-ink-light)' }}
     >
       {children}

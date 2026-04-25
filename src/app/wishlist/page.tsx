@@ -116,7 +116,7 @@ export default function WishlistPage() {
 
   return (
     <NightShell twinkleCount={28} auroraColor={isEmpty ? '#B28BFF' : '#FF7AB8'}>
-      <div className="px-5 pt-5 pb-3">
+      <div className="app-page app-top pb-3">
         <BrandHeader
           eyebrow={displayName.toUpperCase()}
           title="Önskestjärnor"
@@ -162,7 +162,7 @@ export default function WishlistPage() {
         />
       </div>
 
-      <div className="flex-1 px-4 pb-32 pt-2 mx-auto w-full max-w-2xl">
+      <div className="flex-1 app-page-x-tight app-bottom-fab pt-2 mx-auto w-full max-w-2xl no-overscroll">
         {isEmpty ? (
           <EmptyState onAdd={() => setShowAddForm(true)} />
         ) : (
@@ -219,11 +219,12 @@ export default function WishlistPage() {
           type="button"
           onClick={() => setShowAddForm(true)}
           aria-label="Lägg till önskemål"
-          className="anim-fab fixed z-20 flex items-center gap-2 font-display font-bold text-[14px]"
+          className="anim-fab tap-feedback fixed z-20 flex items-center gap-2 font-display font-bold text-[14px]"
           style={{
-            right: 18,
+            right: 'max(18px, env(safe-area-inset-right))',
             bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
-            padding: '12px 20px',
+            padding: '14px 22px',
+            minHeight: 52,
             borderRadius: 9999,
             color: '#fff',
             background: 'linear-gradient(135deg, #FF7AB8, #B28BFF)',
