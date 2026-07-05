@@ -4,11 +4,8 @@ import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
 import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
 import { Check } from '@/components/galaxy';
+import { isSafeUrl } from '@/lib/url';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
-
-function isSafeUrl(url: string): boolean {
-  return url.startsWith('https://') || url.startsWith('http://');
-}
 
 interface ViewerWishItemCardProps {
   item: WishItemDoc;
