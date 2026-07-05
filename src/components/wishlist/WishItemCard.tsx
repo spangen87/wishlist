@@ -3,14 +3,11 @@ import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { updateWishItem, deleteWishItem } from '@/lib/firebase/wishlist';
+import { normalizeUrl, isSafeUrl } from '@/lib/url';
 import type { WishItemDoc } from '@/types/firestore';
 import { Star, Heart, GripDots, Pencil, Trash } from '@/components/galaxy';
 
 const ACCENTS = ['#7DE3FF', '#FF7AB8', '#FFD36E', '#B28BFF', '#85F2CA'];
-
-function isSafeUrl(url: string): boolean {
-  return url.startsWith('https://') || url.startsWith('http://');
-}
 
 interface WishItemCardProps {
   item: WishItemDoc;
@@ -77,16 +74,15 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
     setEditSaving(true);
     setEditSaveError(null);
     try {
-      const SAFE_URL_PREFIXES = ['https://', 'http://'];
-      const trimmedProductUrl = editProductUrl.trim() || undefined;
-      const trimmedImageUrl = editImageUrl.trim() || undefined;
-      if (trimmedProductUrl && !SAFE_URL_PREFIXES.some(p => trimmedProductUrl.startsWith(p))) {
-        setEditSaveError('Länken måste börja med https:// eller http://');
+      const trimmedProductUrl = normalizeUrl(editProductUrl) || undefined;
+      const trimmedImageUrl = normalizeUrl(editImageUrl) || undefined;
+      if (trimmedProductUrl && !isSafeUrl(trimmedProductUrl)) {
+        setEditSaveError('Länken måste vara en webbadress (https://…)');
         setEditSaving(false);
         return;
       }
-      if (trimmedImageUrl && !SAFE_URL_PREFIXES.some(p => trimmedImageUrl.startsWith(p))) {
-        setEditSaveError('Bildlänken måste börja med https:// eller http://');
+      if (trimmedImageUrl && !isSafeUrl(trimmedImageUrl)) {
+        setEditSaveError('Bildlänken måste vara en webbadress (https://…)');
         setEditSaving(false);
         return;
       }
@@ -144,7 +140,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
       />
 
       {editMode ? (
-        <form onSubmit={handleSave} className="flex flex-col gap-3 p-4 pl-5">
+        <form onSubmit={handleSave} noValidate className="flex flex-col gap-3 p-4 pl-5">
           <div>
             <label
               htmlFor={`title-${item.id}`}
@@ -157,6 +153,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
               id={`title-${item.id}`}
               type="text"
               required
+              autoFocus
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               className="night-input"
@@ -197,6 +194,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
               type="url"
               value={editProductUrl}
               onChange={(e) => setEditProductUrl(e.target.value)}
+              onBlur={(e) => setEditProductUrl(normalizeUrl(e.target.value))}
               className="night-input font-mono text-[12px]"
             />
           </div>
@@ -213,6 +211,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
               type="url"
               value={editImageUrl}
               onChange={(e) => setEditImageUrl(e.target.value)}
+              onBlur={(e) => setEditImageUrl(normalizeUrl(e.target.value))}
               className="night-input font-mono text-[12px]"
             />
           </div>
@@ -240,7 +239,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
           )}
           <div className="flex gap-3 flex-wrap items-center mt-1">
             <button type="submit" disabled={editSaving} className="neon-cta">
-              Spara
+              {editSaving ? 'Sparar…' : 'Spara'}
             </button>
             <button type="button" onClick={handleCancelEdit} className="neon-cta-outline">
               Avbryt

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { auth } from '@/lib/firebase/client';
+import { normalizeUrl, isSafeUrl } from '@/lib/url';
 
 interface ParentAddItemFormProps {
   wishlistId: string;
@@ -23,6 +24,11 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
       setTitleError('Titel krävs');
       return;
     }
+    const normalizedProductUrl = normalizeUrl(productUrl);
+    if (normalizedProductUrl && !isSafeUrl(normalizedProductUrl)) {
+      onError('Länken måste vara en webbadress (https://…)');
+      return;
+    }
     setSaving(true);
     try {
       const idToken = await auth.currentUser?.getIdToken();
@@ -34,7 +40,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           idToken,
           wishlistId,
           title: title.trim(),
-          ...(productUrl.trim() ? { productUrl: productUrl.trim() } : {}),
+          ...(normalizedProductUrl ? { productUrl: normalizedProductUrl } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
           ...(price !== '' ? { price: Number(price) } : {}),
         }),
@@ -53,7 +59,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
   }
 
   return (
-    <form onSubmit={handleSubmit} className="light-card p-5 flex flex-col gap-3">
+    <form onSubmit={handleSubmit} noValidate className="light-card p-5 flex flex-col gap-3">
       <div>
         <label
           htmlFor="parent-item-title"
@@ -66,6 +72,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           id="parent-item-title"
           type="text"
           required
+          autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="light-input"
@@ -106,6 +113,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           type="url"
           value={productUrl}
           onChange={(e) => setProductUrl(e.target.value)}
+          onBlur={(e) => setProductUrl(normalizeUrl(e.target.value))}
           className="light-input font-mono text-[12px]"
         />
       </div>

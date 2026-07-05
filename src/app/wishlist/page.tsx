@@ -20,7 +20,7 @@ import {
   closestCenter,
 } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import {
   NightShell,
   BrandHeader,
@@ -100,11 +100,20 @@ export default function WishlistPage() {
     if (oldIndex === -1 || newIndex === -1) return;
 
     const remaining = items.filter((i) => i.id !== active.id);
-    const insertAt = newIndex > oldIndex ? newIndex : newIndex;
-    const prevPos = remaining[insertAt - 1]?.position ?? null;
-    const nextPos = remaining[insertAt]?.position ?? null;
+    const prevPos = remaining[newIndex - 1]?.position ?? null;
+    const nextPos = remaining[newIndex]?.position ?? null;
 
-    await updateItemPosition(wishlistId, active.id as string, prevPos, nextPos);
+    // Optimistic reorder so the card stays where it was dropped instead of
+    // snapping back while the write is in flight; the Firestore subscription
+    // remains the source of truth once the snapshot arrives.
+    const previousItems = items;
+    setItems(arrayMove(items, oldIndex, newIndex));
+
+    try {
+      await updateItemPosition(wishlistId, active.id as string, prevPos, nextPos);
+    } catch {
+      setItems(previousItems);
+    }
   }
 
   if (loading || dataLoading) return <LoadingSkeleton />;

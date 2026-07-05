@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { addWishItem } from '@/lib/firebase/wishlist';
+import { normalizeUrl, isSafeUrl } from '@/lib/url';
 import { Sparkle } from '@/components/galaxy';
 
 interface AddItemFormProps {
@@ -25,6 +26,11 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,14 +40,24 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
       setTitleError('Titel krävs');
       return;
     }
+    const normalizedProductUrl = normalizeUrl(productUrl);
+    const normalizedImageUrl = normalizeUrl(imageUrl);
+    if (normalizedProductUrl && !isSafeUrl(normalizedProductUrl)) {
+      setSaveError('Länken måste vara en webbadress (https://…)');
+      return;
+    }
+    if (normalizedImageUrl && !isSafeUrl(normalizedImageUrl)) {
+      setSaveError('Bildlänken måste vara en webbadress (https://…)');
+      return;
+    }
     setSaving(true);
     try {
       await addWishItem(
         wishlistId,
         {
           title: title.trim(),
-          ...(productUrl.trim() ? { productUrl: productUrl.trim() } : {}),
-          ...(imageUrl.trim() ? { imageUrl: imageUrl.trim() } : {}),
+          ...(normalizedProductUrl ? { productUrl: normalizedProductUrl } : {}),
+          ...(normalizedImageUrl ? { imageUrl: normalizedImageUrl } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
           ...(price !== '' ? { price: Number(price) } : {}),
         },
@@ -88,8 +104,10 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
           type={isPrice ? 'number' : isUrl ? 'url' : 'text'}
           min={isPrice ? '0' : undefined}
           required={id === 'title'}
+          autoFocus={id === 'title'}
           value={value as string | number}
           onChange={(e) => setValue(e.target.value)}
+          onBlur={isUrl ? (e) => setValue(normalizeUrl(e.target.value)) : undefined}
           placeholder={
             id === 'imageUrl'
               ? 'Klistra in bildlänk'
@@ -111,7 +129,9 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
+      noValidate
       className="night-card flex flex-col gap-4 p-5"
     >
       {FIELDS.map((f) => renderField(f.id, f.label, f.accent))}
@@ -142,7 +162,7 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
 
       <div className="flex gap-3 flex-wrap mt-1">
         <button type="submit" disabled={saving} className="neon-cta">
-          <Sparkle size={14} color="#fff" /> Tänd stjärnan
+          <Sparkle size={14} color="#fff" /> {saving ? 'Sparar…' : 'Tänd stjärnan'}
         </button>
         <button type="button" onClick={onClose} className="neon-cta-outline">
           Avbryt
