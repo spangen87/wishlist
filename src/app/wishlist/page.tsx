@@ -121,6 +121,7 @@ export default function WishlistPage() {
 
   const lastPosition = items.length > 0 ? items[items.length - 1].position : null;
   const totalFavorites = items.filter((i) => i.isFavorite).length;
+  const totalPhotos = items.filter((i) => !!i.photoData).length;
   const isEmpty = items.length === 0 && !showAddForm;
 
   return (
@@ -190,6 +191,7 @@ export default function WishlistPage() {
                       item={item}
                       wishlistId={wishlistId!}
                       totalFavorites={totalFavorites}
+                      totalPhotos={totalPhotos}
                       index={idx}
                     />
                   ))}
@@ -202,6 +204,7 @@ export default function WishlistPage() {
                       item={activeItem}
                       wishlistId={wishlistId!}
                       totalFavorites={totalFavorites}
+                      totalPhotos={totalPhotos}
                       index={0}
                     />
                   </div>
@@ -214,6 +217,7 @@ export default function WishlistPage() {
                 <AddItemForm
                   wishlistId={wishlistId!}
                   lastPosition={lastPosition}
+                  photoCount={totalPhotos}
                   onClose={() => setShowAddForm(false)}
                 />
               </div>

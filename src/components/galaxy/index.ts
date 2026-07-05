@@ -18,6 +18,7 @@ export {
   Image as ImageIcon,
   Note as NoteIcon,
   LogOut,
+  Camera,
 } from './Icons';
 export { Starfield, TwinklingStars, Aurora } from './Starfield';
 export { NightShell, LightShell } from './NightShell';

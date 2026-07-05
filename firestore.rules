@@ -47,11 +47,23 @@ service cloud.firestore {
       // Viewers can also read items (to show the wishlist to them)
       // isFavorite is child-only: parent updates are allowed only when isFavorite is not affected (B-02)
       match /items/{itemId} {
+        // photoData holds an own photo inline as a JPEG data URL (Spark plan
+        // has no Cloud Storage). Cap size (must match MAX_PHOTO_DATA_CHARS in
+        // src/lib/image.ts) and require a JPEG data URL so nothing executable
+        // or oversized can be stored.
+        function hasValidPhotoData() {
+          return !('photoData' in request.resource.data)
+            || (request.resource.data.photoData is string
+                && request.resource.data.photoData.size() <= 300000
+                && request.resource.data.photoData.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'));
+        }
         allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId) || isParent(wishlistId));
-        allow create, delete: if isOwner(wishlistId) || isParent(wishlistId);
-        allow update: if isOwner(wishlistId) ||
+        allow create: if (isOwner(wishlistId) || isParent(wishlistId)) && hasValidPhotoData();
+        allow delete: if isOwner(wishlistId) || isParent(wishlistId);
+        allow update: if (isOwner(wishlistId) ||
           (isParent(wishlistId) &&
-           !resource.data.diff(request.resource.data).affectedKeys().hasAny(['isFavorite']));
+           !resource.data.diff(request.resource.data).affectedKeys().hasAny(['isFavorite'])))
+          && hasValidPhotoData();
       }
 
       // Purchase status subcollection — viewers AND parents can read/write, child CANNOT (D-03)
