@@ -163,6 +163,22 @@ export default function DashboardPage() {
 
   const userInitial = (user.email ?? '?').slice(0, 1).toUpperCase();
 
+  // Upcoming occasions first (soonest on top), then the rest by child name,
+  // so the list a parent needs to act on is always at the top.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const sortKey = (wl: WishlistDoc) => {
+    const date = wl.occasion?.date;
+    return date && date >= todayIso ? date : '9999-99-99';
+  };
+  const sortedParentWishlists = [...parentWishlists].sort((a, b) => {
+    const dateCmp = sortKey(a).localeCompare(sortKey(b));
+    if (dateCmp !== 0) return dateCmp;
+    return (childNames.get(a.childUid) ?? '').localeCompare(
+      childNames.get(b.childUid) ?? '',
+      'sv'
+    );
+  });
+
   return (
     <LightShell>
       {/* Header */}
@@ -226,7 +242,7 @@ export default function DashboardPage() {
             </button>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {parentWishlists.map((wl) => (
+              {sortedParentWishlists.map((wl) => (
                 <ParentWishlistDashboardCard
                   key={wl.id}
                   wishlist={wl}

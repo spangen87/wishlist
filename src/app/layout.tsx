@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -63,6 +64,7 @@ export default function RootLayout({
           }}
         />
         <AuthProvider>{children}</AuthProvider>
+        <InstallPrompt />
       </body>
     </html>
   );

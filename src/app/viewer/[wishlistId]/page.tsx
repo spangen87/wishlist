@@ -1,15 +1,15 @@
 'use client';
-import { use, useEffect, useState, useCallback } from 'react';
+import { use, useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { subscribeToItems } from '@/lib/firebase/wishlist';
-import { subscribeToPurchaseStatus } from '@/lib/firebase/viewer';
+import { subscribeToPurchaseStatus, subscribeToParentWishlists } from '@/lib/firebase/viewer';
 import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
 import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
-import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
+import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
 import Link from 'next/link';
 import { LightShell, ArrowLeft, Cog, Plus, Pencil, Heart, Calendar } from '@/components/galaxy';
 
@@ -29,21 +29,43 @@ export default function ViewerWishlistPage({
   const [error, setError] = useState<string | null>(null);
 
   const [wishlistTitle, setWishlistTitle] = useState<string>('');
+  const [childUid, setChildUid] = useState<string>('');
   const [isParent, setIsParent] = useState(false);
+  const [siblingLists, setSiblingLists] = useState<WishlistDoc[]>([]);
+  const [childNames, setChildNames] = useState<Map<string, string>>(new Map());
   const [occasion, setOccasion] = useState<{ name: string; date: string } | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [addItemError, setAddItemError] = useState<string | null>(null);
+  const fetchedNamesRef = useRef(new Set<string>());
+  const fetchedChildNamesRef = useRef(new Set<string>());
+
+  // Reset per-list state when switching between children so the previous
+  // child's items don't flash while the new subscriptions warm up.
+  const [prevWishlistId, setPrevWishlistId] = useState(wishlistId);
+  if (prevWishlistId !== wishlistId) {
+    setPrevWishlistId(wishlistId);
+    setItems([]);
+    setStatuses({});
+    setDataLoading(true);
+    setShowAddItem(false);
+    setIsRenaming(false);
+    setRenameError(null);
+    setAddItemError(null);
+  }
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
 
+  // Ref-based dedupe keeps this callback stable — a state-based check would
+  // recreate it on every name fetch and tear down the Firestore subscriptions.
   const fetchDisplayName = useCallback(async (uid: string) => {
-    if (displayNames.has(uid)) return;
+    if (fetchedNamesRef.current.has(uid)) return;
+    fetchedNamesRef.current.add(uid);
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
@@ -54,7 +76,22 @@ export default function ViewerWishlistPage({
     } catch {
       // silent
     }
-  }, [displayNames]);
+  }, []);
+
+  const fetchChildName = useCallback(async (uid: string) => {
+    if (fetchedChildNamesRef.current.has(uid)) return;
+    fetchedChildNamesRef.current.add(uid);
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        const name: string = data.displayName ?? data.username ?? data.email ?? uid;
+        setChildNames((prev) => new Map(prev).set(uid, name));
+      }
+    } catch {
+      // silent
+    }
+  }, []);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -67,6 +104,8 @@ export default function ViewerWishlistPage({
         const parentUids: string[] = wlData.parentUids ?? [];
         setIsParent(parentUids.includes(user.uid));
         setOccasion(wlData.occasion ?? null);
+        setChildUid(wlData.childUid ?? '');
+        fetchChildName(wlData.childUid);
       }
     }).catch(() => {
       // silent
@@ -89,7 +128,18 @@ export default function ViewerWishlistPage({
       unsubItems();
       unsubStatus();
     };
-  }, [loading, user, wishlistId, fetchDisplayName]);
+  }, [loading, user, wishlistId, fetchDisplayName, fetchChildName]);
+
+  // Quick switcher between the parent's children (shown when there is
+  // more than one list the user has parent access to).
+  useEffect(() => {
+    if (loading || !user) return;
+    const unsub = subscribeToParentWishlists(user.uid, (lists) => {
+      setSiblingLists(lists);
+      lists.forEach((wl) => fetchChildName(wl.childUid));
+    });
+    return unsub;
+  }, [loading, user, fetchChildName]);
 
   async function handleTogglePurchased(
     itemId: string,
@@ -198,6 +248,13 @@ export default function ViewerWishlistPage({
   const favoriteItems = items.filter((i) => i.isFavorite);
   const otherItems = items.filter((i) => !i.isFavorite);
 
+  const childName = childUid ? childNames.get(childUid) ?? '' : '';
+  const fallbackTitle = childName ? `${childName}s önskelista` : 'Önskelista';
+  const showSwitcher = isParent && siblingLists.length > 1;
+  const switcherLists = [...siblingLists].sort((a, b) =>
+    (childNames.get(a.childUid) ?? '').localeCompare(childNames.get(b.childUid) ?? '', 'sv')
+  );
+
   function renderCard(item: WishItemDoc) {
     const statusDoc = statuses[item.id];
     return (
@@ -259,10 +316,50 @@ export default function ViewerWishlistPage({
         </Link>
       </header>
 
+      {/* Child switcher — jump straight between siblings' lists */}
+      {showSwitcher && (
+        <nav
+          aria-label="Byt barn"
+          className="app-page pb-3 flex gap-2 overflow-x-auto"
+          style={{ background: '#fff' }}
+        >
+          {switcherLists.map((wl) => {
+            const active = wl.id === wishlistId;
+            return (
+              <Link
+                key={wl.id}
+                href={`/viewer/${wl.id}`}
+                aria-current={active ? 'page' : undefined}
+                className="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold"
+                style={
+                  active
+                    ? { background: 'var(--color-accent)', color: '#fff' }
+                    : {
+                        background: 'var(--color-bg-light)',
+                        color: 'var(--color-muted-light)',
+                        border: '1px solid var(--color-border-light)',
+                      }
+                }
+              >
+                {childNames.get(wl.childUid) ?? '…'}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
       <div
         className="app-page pb-4"
         style={{ background: '#fff', borderBottom: '1px solid var(--color-border-light)' }}
       >
+        {childName && !!wishlistTitle && (
+          <p
+            className="text-[11px] font-bold tracking-caps mb-1"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            {childName}
+          </p>
+        )}
         {isParent && isRenaming ? (
           <input
             type="text"
@@ -288,7 +385,7 @@ export default function ViewerWishlistPage({
             style={{ color: 'var(--color-ink-light)', cursor: isParent ? 'pointer' : 'default' }}
             aria-label={isParent ? 'Klicka för att byta namn' : undefined}
           >
-            {wishlistTitle || 'Namnlös önskelista'}
+            {wishlistTitle || fallbackTitle}
             {isParent && <Pencil size={14} color="var(--color-muted-light)" />}
           </button>
         )}

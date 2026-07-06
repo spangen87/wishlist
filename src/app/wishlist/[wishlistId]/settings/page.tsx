@@ -477,6 +477,7 @@ export default function WishlistSettingsPage({
   const [accessType, setAccessType] = useState<'child' | 'parent' | null>(null);
   const [initialParentToken, setInitialParentToken] = useState<string | null>(null);
   const [initialOccasion, setInitialOccasion] = useState<{ name: string; date: string } | null>(null);
+  const [childName, setChildName] = useState<string>('');
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -506,6 +507,14 @@ export default function WishlistSettingsPage({
         setAccessType(callerIsOwner ? 'child' : 'parent');
         setInitialParentToken(data.currentParentInviteToken ?? null);
         setInitialOccasion(data.occasion ?? null);
+
+        try {
+          const childSnap = await getDoc(doc(db, 'users', data.childUid));
+          const childData = childSnap.data();
+          setChildName(childData?.displayName ?? childData?.username ?? '');
+        } catch {
+          // silent — header just omits the name
+        }
 
         const viewerUids: string[] = data.viewerUids ?? [];
         const resolved = await Promise.all(
@@ -558,6 +567,11 @@ export default function WishlistSettingsPage({
         </Link>
         <div>
           <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
+          {childName && (
+            <p className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+              {childName}s önskelista
+            </p>
+          )}
         </div>
       </header>
 
