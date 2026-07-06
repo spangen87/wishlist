@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { generateKeyBetween } from 'fractional-indexing';
 import { db } from '@/lib/firebase/client';
+import { isValidPhotoDataUrl } from '@/lib/image';
 import type { WishItemDoc } from '@/types/firestore';
 
 // Pattern 1 (RESEARCH.md): Use child UID as wishlist doc ID — deterministic and idempotent.
@@ -43,7 +44,7 @@ export function subscribeToItems(
 // Pattern 3 (RESEARCH.md): Add item — append after last item.
 export async function addWishItem(
   wishlistId: string,
-  fields: { title: string; productUrl?: string; imageUrl?: string; note?: string; price?: number },
+  fields: { title: string; productUrl?: string; imageUrl?: string; photoData?: string; note?: string; price?: number },
   lastPosition: string | null
 ): Promise<void> {
   const SAFE_URL_PREFIXES = ['https://', 'http://'];
@@ -52,6 +53,9 @@ export async function addWishItem(
   }
   if (fields.imageUrl && !SAFE_URL_PREFIXES.some(p => fields.imageUrl!.startsWith(p))) {
     throw new Error('imageUrl must start with https:// or http://');
+  }
+  if (fields.photoData && !isValidPhotoDataUrl(fields.photoData)) {
+    throw new Error('photoData must be a JPEG data URL under the size limit');
   }
   const position = generateKeyBetween(lastPosition, null);
   await addDoc(collection(db, 'wishlists', wishlistId, 'items'), {
@@ -73,6 +77,9 @@ export async function updateWishItem(
   }
   if (changes.imageUrl && !SAFE_URL_PREFIXES.some(p => changes.imageUrl!.startsWith(p))) {
     throw new Error('imageUrl must start with https:// or http://');
+  }
+  if (changes.photoData && !isValidPhotoDataUrl(changes.photoData)) {
+    throw new Error('photoData must be a JPEG data URL under the size limit');
   }
   // Convert undefined values to deleteField() so clearing a field actually persists.
   // Without this, Firestore JS SDK silently drops undefined keys and the existing

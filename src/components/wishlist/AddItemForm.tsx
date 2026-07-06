@@ -2,11 +2,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { addWishItem } from '@/lib/firebase/wishlist';
 import { normalizeUrl, isSafeUrl } from '@/lib/url';
-import { Sparkle } from '@/components/galaxy';
+import { fileToPhotoDataUrl, MAX_PHOTOS_PER_LIST } from '@/lib/image';
+import { Sparkle, Camera } from '@/components/galaxy';
 
 interface AddItemFormProps {
   wishlistId: string;
   lastPosition: string | null;
+  photoCount: number;
   onClose: () => void;
 }
 
@@ -17,7 +19,7 @@ const FIELDS = [
   { id: 'imageUrl', label: 'Bild', accent: '#B28BFF' },
 ] as const;
 
-export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormProps) {
+export function AddItemForm({ wishlistId, lastPosition, photoCount, onClose }: AddItemFormProps) {
   const [title, setTitle] = useState('');
   const [productUrl, setProductUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -26,11 +28,32 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoData, setPhotoData] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const atPhotoLimit = photoCount >= MAX_PHOTOS_PER_LIST;
 
   useEffect(() => {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      setPhotoData(await fileToPhotoDataUrl(file));
+    } catch {
+      setPhotoError('Kunde inte läsa bilden. Prova ett annat foto.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +81,7 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
           title: title.trim(),
           ...(normalizedProductUrl ? { productUrl: normalizedProductUrl } : {}),
           ...(normalizedImageUrl ? { imageUrl: normalizedImageUrl } : {}),
+          ...(photoData ? { photoData } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
           ...(price !== '' ? { price: Number(price) } : {}),
         },
@@ -138,6 +162,63 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
 
       <div>
         <label
+          className="block mb-1.5 text-[10px] font-bold tracking-caps"
+          style={{ color: '#FFD36E' }}
+        >
+          Eget foto
+        </label>
+        {photoData ? (
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoData}
+              alt="Ditt foto"
+              className="object-cover"
+              style={{ width: 56, height: 56, borderRadius: 12 }}
+            />
+            <button
+              type="button"
+              onClick={() => setPhotoData(null)}
+              className="text-[13px] font-semibold"
+              style={{ color: 'var(--color-pink)' }}
+            >
+              Ta bort foto
+            </button>
+          </div>
+        ) : atPhotoLimit ? (
+          <p className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
+            Listan har redan {MAX_PHOTOS_PER_LIST} foton (max). Ta bort ett foto
+            från ett annat önskemål först.
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoBusy}
+              className="neon-cta-outline flex items-center gap-1.5"
+            >
+              <Camera size={14} /> {photoBusy ? 'Förbereder…' : 'Ta ett foto'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+              aria-label="Välj foto"
+            />
+          </>
+        )}
+        {photoError && (
+          <p role="alert" className="text-[12px] mt-1" style={{ color: 'var(--color-pink)' }}>
+            {photoError}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label
           htmlFor="add-note"
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: '#85F2CA' }}
@@ -161,7 +242,7 @@ export function AddItemForm({ wishlistId, lastPosition, onClose }: AddItemFormPr
       )}
 
       <div className="flex gap-3 flex-wrap mt-1">
-        <button type="submit" disabled={saving} className="neon-cta">
+        <button type="submit" disabled={saving || photoBusy} className="neon-cta">
           <Sparkle size={14} color="#fff" /> {saving ? 'Sparar…' : 'Tänd stjärnan'}
         </button>
         <button type="button" onClick={onClose} className="neon-cta-outline">

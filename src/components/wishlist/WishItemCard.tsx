@@ -1,11 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { updateWishItem, deleteWishItem } from '@/lib/firebase/wishlist';
 import { normalizeUrl, isSafeUrl } from '@/lib/url';
+import { fileToPhotoDataUrl, MAX_PHOTOS_PER_LIST } from '@/lib/image';
 import type { WishItemDoc } from '@/types/firestore';
-import { Star, Heart, GripDots, Pencil, Trash } from '@/components/galaxy';
+import { Star, Heart, GripDots, Pencil, Trash, Camera } from '@/components/galaxy';
 
 const ACCENTS = ['#7DE3FF', '#FF7AB8', '#FFD36E', '#B28BFF', '#85F2CA'];
 
@@ -13,10 +14,11 @@ interface WishItemCardProps {
   item: WishItemDoc;
   wishlistId: string;
   totalFavorites: number;
+  totalPhotos: number;
   index?: number;
 }
 
-export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: WishItemCardProps) {
+export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, index = 0 }: WishItemCardProps) {
   const accent = ACCENTS[index % ACCENTS.length];
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -28,9 +30,17 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
   const [editProductUrl, setEditProductUrl] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editNote, setEditNote] = useState('');
+  const [editPhotoData, setEditPhotoData] = useState<string | null>(null);
+  const [editPhotoBusy, setEditPhotoBusy] = useState(false);
+  const [editPhotoError, setEditPhotoError] = useState<string | null>(null);
   const [editTitleError, setEditTitleError] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editSaveError, setEditSaveError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Photos count toward the per-list cap only when this item doesn't
+  // already have one (replacing an existing photo is always allowed).
+  const atPhotoLimit = !item.photoData && totalPhotos >= MAX_PHOTOS_PER_LIST;
 
   const {
     attributes,
@@ -54,10 +64,27 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
     setEditProductUrl(item.productUrl ?? '');
     setEditImageUrl(item.imageUrl ?? '');
     setEditNote(item.note ?? '');
+    setEditPhotoData(item.photoData ?? null);
+    setEditPhotoError(null);
     setEditTitleError(false);
     setEditSaveError(null);
     setShowDeleteConfirm(false);
     setEditMode(true);
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setEditPhotoError(null);
+    setEditPhotoBusy(true);
+    try {
+      setEditPhotoData(await fileToPhotoDataUrl(file));
+    } catch {
+      setEditPhotoError('Kunde inte läsa bilden. Prova ett annat foto.');
+    } finally {
+      setEditPhotoBusy(false);
+    }
   }
 
   function handleCancelEdit() {
@@ -90,6 +117,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
         title: editTitle.trim(),
         productUrl: trimmedProductUrl,
         imageUrl: trimmedImageUrl,
+        photoData: editPhotoData ?? undefined,
         note: editNote.trim() || undefined,
         price: editPrice !== '' ? Number(editPrice) : undefined,
       };
@@ -217,6 +245,62 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
           </div>
           <div>
             <label
+              className="block mb-1.5 text-[10px] font-bold tracking-caps"
+              style={{ color: 'var(--color-gold)' }}
+            >
+              Eget foto
+            </label>
+            {editPhotoData ? (
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editPhotoData}
+                  alt="Ditt foto"
+                  className="object-cover"
+                  style={{ width: 56, height: 56, borderRadius: 12 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditPhotoData(null)}
+                  className="text-[13px] font-semibold"
+                  style={{ color: 'var(--color-pink)' }}
+                >
+                  Ta bort foto
+                </button>
+              </div>
+            ) : atPhotoLimit ? (
+              <p className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
+                Listan har redan {MAX_PHOTOS_PER_LIST} foton (max). Ta bort ett
+                foto från ett annat önskemål först.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={editPhotoBusy}
+                  className="neon-cta-outline flex items-center gap-1.5"
+                >
+                  <Camera size={14} /> {editPhotoBusy ? 'Förbereder…' : 'Ta ett foto'}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  aria-label="Välj foto"
+                />
+              </>
+            )}
+            {editPhotoError && (
+              <p role="alert" className="text-[12px] mt-1" style={{ color: 'var(--color-pink)' }}>
+                {editPhotoError}
+              </p>
+            )}
+          </div>
+          <div>
+            <label
               htmlFor={`note-${item.id}`}
               className="block mb-1.5 text-[10px] font-bold tracking-caps"
               style={{ color: 'var(--color-mint)' }}
@@ -238,7 +322,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
             </p>
           )}
           <div className="flex gap-3 flex-wrap items-center mt-1">
-            <button type="submit" disabled={editSaving} className="neon-cta">
+            <button type="submit" disabled={editSaving || editPhotoBusy} className="neon-cta">
               {editSaving ? 'Sparar…' : 'Spara'}
             </button>
             <button type="button" onClick={handleCancelEdit} className="neon-cta-outline">
@@ -293,11 +377,11 @@ export function WishItemCard({ item, wishlistId, totalFavorites, index = 0 }: Wi
             <GripDots size={18} color="rgba(155,154,198,0.7)" />
           </button>
 
-          {/* Thumbnail */}
-          {item.imageUrl && !imageLoadError ? (
+          {/* Thumbnail — own photo wins over external image URL */}
+          {(item.photoData ?? item.imageUrl) && !imageLoadError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={item.imageUrl}
+              src={item.photoData ?? item.imageUrl}
               alt={item.title}
               width={56}
               height={56}

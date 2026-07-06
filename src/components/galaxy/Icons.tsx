@@ -201,3 +201,13 @@ export function LogOut({ size = 16, color = 'currentColor', className, style }: 
     </svg>
   );
 }
+
+export function Camera({ size = 14, color = 'currentColor', className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
+      <rect x="1.5" y="5.5" width="17" height="11.5" rx="2.5" />
+      <path d="M7 5.5l1.3-2h3.4L13 5.5" />
+      <circle cx="10" cy="11" r="3.2" />
+    </svg>
+  );
+}

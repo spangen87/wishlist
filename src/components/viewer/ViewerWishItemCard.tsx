@@ -82,12 +82,12 @@ export function ViewerWishItemCard({
       className="light-card flex gap-3 p-3"
       style={{ opacity: isPurchased ? 0.7 : 1 }}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail — own photo wins over external image URL */}
       <div className="shrink-0">
-        {item.imageUrl && !imageLoadError ? (
+        {(item.photoData ?? item.imageUrl) && !imageLoadError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.imageUrl}
+            src={item.photoData ?? item.imageUrl}
             alt={item.title}
             width={56}
             height={56}

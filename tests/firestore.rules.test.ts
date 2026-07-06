@@ -194,6 +194,54 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
     );
   });
 
+  // === photoData validation on items (own photos stored inline) ===
+
+  const VALID_PHOTO = 'data:image/jpeg;base64,' + 'A'.repeat(1000);
+
+  it('ALLOW: child can create item with a valid JPEG photoData', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const itemRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID, 'items', 'photo-item');
+    await assertSucceeds(
+      setDoc(itemRef, { title: 'Foto', position: '1', createdAt: new Date(), photoData: VALID_PHOTO })
+    );
+  });
+
+  it('ALLOW: child can update an item with a valid JPEG photoData', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const itemRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID, 'items', ITEM_ID);
+    await assertSucceeds(setDoc(itemRef, { photoData: VALID_PHOTO }, { merge: true }));
+  });
+
+  it('DENY: photoData over the 300000 char size cap', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const itemRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID, 'items', 'big-photo');
+    const oversized = 'data:image/jpeg;base64,' + 'A'.repeat(300001);
+    await assertFails(
+      setDoc(itemRef, { title: 'För stor', position: '1', createdAt: new Date(), photoData: oversized })
+    );
+  });
+
+  it('DENY: photoData that is not a JPEG data URL', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const itemRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID, 'items', 'evil-photo');
+    await assertFails(
+      setDoc(itemRef, {
+        title: 'Fel typ',
+        position: '1',
+        createdAt: new Date(),
+        photoData: 'data:text/html;base64,PGh0bWw+',
+      })
+    );
+  });
+
+  it('DENY: photoData that is not a string', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const itemRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID, 'items', 'num-photo');
+    await assertFails(
+      setDoc(itemRef, { title: 'Fel typ', position: '1', createdAt: new Date(), photoData: 12345 })
+    );
+  });
+
   // === invites collection — Admin SDK only ===
 
   it('DENY: authenticated user cannot read invites collection', async () => {

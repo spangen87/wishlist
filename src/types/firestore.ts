@@ -22,6 +22,9 @@ export interface WishItemDoc {
   title: string;           // Required
   productUrl?: string;     // Optional: link to product
   imageUrl?: string;       // Optional: image URL
+  photoData?: string;      // Optional: own photo as compressed JPEG data URL
+                           // (inline in the doc — Spark plan has no Cloud Storage;
+                           // size capped in firestore.rules and src/lib/image.ts)
   note?: string;           // Optional: child's personal note
   price?: number;          // Optional: approximate price
   position: string;        // Fractional index for drag-and-drop ordering (Phase 3)
