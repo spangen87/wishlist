@@ -10,9 +10,8 @@
 const mockRunTransaction = jest.fn();
 const mockBatchSet = jest.fn();
 const mockBatchCommit = jest.fn();
-const mockBatchDelete = jest.fn();
 const mockDocDelete = jest.fn();
-const mockDocGet = jest.fn();
+const mockWhereGet = jest.fn();
 const mockUsernameDocRef = {
   delete: mockDocDelete,
 };
@@ -25,11 +24,14 @@ const mockBatch = {
 const mockAdminDb = {
   runTransaction: mockRunTransaction,
   batch: jest.fn(() => mockBatch),
-  collection: jest.fn((collName: string) => ({
+  collection: jest.fn(() => ({
     doc: jest.fn((docId: string) => ({
       ...mockUsernameDocRef,
       id: docId,
       // Reference used in batch.set calls
+    })),
+    where: jest.fn(() => ({
+      get: mockWhereGet,
     })),
   })),
 };
@@ -97,7 +99,9 @@ describe('POST /api/auth/register-child', () => {
     mockBatchSet.mockReturnValue(undefined);
     mockBatchCommit.mockResolvedValue(undefined);
     mockDocDelete.mockResolvedValue(undefined);
-    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-parent' });
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-parent', role: 'parent' });
+    // Default: parent has no children yet
+    mockWhereGet.mockResolvedValue({ size: 0 });
   });
 
   const validBody = { username: 'alice', password: 'pass123', displayName: 'Alice', age: 10, viewerIdToken: 'tok' };
@@ -132,6 +136,38 @@ describe('POST /api/auth/register-child', () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('username, password, displayName, and viewerIdToken required');
+  });
+
+  it('returns 400 when username contains invalid characters', async () => {
+    for (const bad of ['a b', 'foo/bar', 'anna@x', 'åsa123', 'ab']) {
+      const req = makeRequest({ ...validBody, username: bad });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+    }
+    expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when password is shorter than 6 characters', async () => {
+    const req = makeRequest({ ...validBody, password: '12345' });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when the caller is a child account', async () => {
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-child', role: 'child' });
+    const req = makeRequest(validBody);
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+    expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 when the parent already has the maximum number of children', async () => {
+    mockWhereGet.mockResolvedValue({ size: 10 });
+    const req = makeRequest(validBody);
+    const res = await POST(req);
+    expect(res.status).toBe(429);
+    expect(mockCreateUser).not.toHaveBeenCalled();
   });
 
   it('normalises username to lowercase before creating account', async () => {

@@ -25,8 +25,14 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
       setError('Ange ett visningsnamn');
       return;
     }
-    if (username.trim().length < 3) {
+    const usernameLower = username.trim().toLowerCase();
+    if (usernameLower.length < 3) {
       setError('Användarnamnet måste vara minst 3 tecken');
+      return;
+    }
+    // Must match USERNAME_PATTERN in /api/auth/register-child
+    if (!/^[a-z0-9._-]{3,30}$/.test(usernameLower)) {
+      setError('Användarnamnet får bara innehålla bokstäver (a–z), siffror, punkt, bindestreck och understreck');
       return;
     }
     if (password.length < 6) {
@@ -58,7 +64,7 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: username.trim().toLowerCase(),
+          username: usernameLower,
           password,
           displayName: displayName.trim(),
           age: ageNum,
@@ -70,7 +76,8 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
         return;
       }
       if (!res.ok) {
-        setError('Något gick fel. Försök igen.');
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? 'Något gick fel. Försök igen.');
         return;
       }
       const { uid } = await res.json();

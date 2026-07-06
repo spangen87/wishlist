@@ -10,6 +10,7 @@ import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
 import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
+import { resolveDisplayName } from '@/lib/displayName';
 import Link from 'next/link';
 import { LightShell, ArrowLeft, Cog, Plus, Pencil, Heart, Calendar } from '@/components/galaxy';
 
@@ -69,8 +70,7 @@ export default function ViewerWishlistPage({
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
-        const data = snap.data();
-        const name: string = data.username ?? data.email ?? uid;
+        const name = resolveDisplayName(snap.data(), uid);
         setDisplayNames((prev) => new Map(prev).set(uid, name));
       }
     } catch {
@@ -84,8 +84,7 @@ export default function ViewerWishlistPage({
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
-        const data = snap.data();
-        const name: string = data.displayName ?? data.username ?? data.email ?? uid;
+        const name = resolveDisplayName(snap.data(), uid);
         setChildNames((prev) => new Map(prev).set(uid, name));
       }
     } catch {
@@ -111,10 +110,18 @@ export default function ViewerWishlistPage({
       // silent
     });
 
-    const unsubItems = subscribeToItems(wishlistId, (newItems) => {
-      setItems(newItems);
-      setDataLoading(false);
-    });
+    const unsubItems = subscribeToItems(
+      wishlistId,
+      (newItems) => {
+        setItems(newItems);
+        setDataLoading(false);
+      },
+      () => {
+        // Permission denied — viewer was removed or the wishlist was deleted.
+        setError('Du har inte längre tillgång till den här önskelistan.');
+        setDataLoading(false);
+      }
+    );
 
     const unsubStatus = subscribeToPurchaseStatus(wishlistId, (newStatuses) => {
       setStatuses(newStatuses);
@@ -229,13 +236,9 @@ export default function ViewerWishlistPage({
       <LightShell>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
           <p className="text-[14px]" style={{ color: 'var(--color-destructive)' }}>{error}</p>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="light-cta-outline"
-          >
-            Försök igen
-          </button>
+          <Link href="/dashboard" className="light-cta-outline">
+            Till mina listor
+          </Link>
         </div>
       </LightShell>
     );
@@ -365,6 +368,7 @@ export default function ViewerWishlistPage({
             type="text"
             value={renameValue}
             autoFocus
+            maxLength={100}
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={handleRename}
             onKeyDown={(e) => {

@@ -182,6 +182,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
               type="text"
               required
               autoFocus
+              maxLength={200}
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               className="night-input"
@@ -310,6 +311,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
             <textarea
               id={`note-${item.id}`}
               rows={3}
+              maxLength={1000}
               value={editNote}
               onChange={(e) => setEditNote(e.target.value)}
               className="night-input italic resize-none"

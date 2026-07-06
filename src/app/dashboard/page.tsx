@@ -9,6 +9,7 @@ import { subscribeToViewerWishlists, subscribeToParentWishlists } from '@/lib/fi
 import { WishlistDashboardCard } from '@/components/viewer/WishlistDashboardCard';
 import { ParentWishlistDashboardCard } from '@/components/viewer/ParentWishlistDashboardCard';
 import { LightShell, Molly, Plus, LogOut } from '@/components/galaxy';
+import { resolveDisplayName } from '@/lib/displayName';
 import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistStats {
@@ -40,8 +41,7 @@ export default function DashboardPage() {
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
-        const data = snap.data();
-        const name: string = data.displayName ?? data.username ?? data.email ?? uid;
+        const name = resolveDisplayName(snap.data(), uid);
         setChildNames((prev) => new Map(prev).set(uid, name));
       }
     } catch { /* silent */ }
@@ -73,10 +73,24 @@ export default function DashboardPage() {
   useEffect(() => {
     if (loading || !user) return;
 
+    // Track which list each source currently reports so stats listeners for
+    // lists the user lost access to are torn down instead of leaking.
+    const parentIds = new Set<string>();
+    const viewerIds = new Set<string>();
+
     function subscribeToStatsTracked(wishlistId: string) {
       if (statsUnsubsRef.current.has(wishlistId)) return;
       const unsub = subscribeToStats(wishlistId);
       statsUnsubsRef.current.set(wishlistId, unsub);
+    }
+
+    function pruneStatsSubscriptions() {
+      statsUnsubsRef.current.forEach((unsub, id) => {
+        if (!parentIds.has(id) && !viewerIds.has(id)) {
+          unsub();
+          statsUnsubsRef.current.delete(id);
+        }
+      });
     }
 
     const unsubParent = subscribeToParentWishlists(
@@ -84,10 +98,13 @@ export default function DashboardPage() {
       (newLists) => {
         setParentWishlists(newLists);
         setParentDataLoading(false);
+        parentIds.clear();
         newLists.forEach((wl) => {
+          parentIds.add(wl.id);
           fetchChildName(wl.childUid);
           subscribeToStatsTracked(wl.id);
         });
+        pruneStatsSubscriptions();
       },
       () => setParentDataLoading(false)
     );
@@ -97,10 +114,13 @@ export default function DashboardPage() {
       (newLists) => {
         setViewerWishlists(newLists);
         setViewerDataLoading(false);
+        viewerIds.clear();
         newLists.forEach((wl) => {
+          viewerIds.add(wl.id);
           fetchChildName(wl.childUid);
           subscribeToStatsTracked(wl.id);
         });
+        pruneStatsSubscriptions();
       },
       () => setViewerDataLoading(false)
     );

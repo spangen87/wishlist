@@ -6,17 +6,21 @@
 
 const mockVerifyIdToken = jest.fn();
 const mockSetCustomUserClaims = jest.fn();
+const mockGetUser = jest.fn();
 
 const mockAdminAuth = {
   verifyIdToken: mockVerifyIdToken,
   setCustomUserClaims: mockSetCustomUserClaims,
+  getUser: mockGetUser,
 };
 
 const mockDocSet = jest.fn();
+const mockDocGet = jest.fn();
 const mockAdminDb = {
   collection: jest.fn(() => ({
     doc: jest.fn(() => ({
       set: mockDocSet,
+      get: mockDocGet,
     })),
   })),
 };
@@ -58,6 +62,9 @@ describe('POST /api/auth/set-viewer-claim', () => {
     mockVerifyIdToken.mockResolvedValue({ uid: 'uid-viewer', email: 'viewer@example.com' });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
     mockDocSet.mockResolvedValue(undefined);
+    // Default: freshly registered account with no role claim and no profile doc
+    mockGetUser.mockResolvedValue({ customClaims: {} });
+    mockDocGet.mockResolvedValue({ exists: false });
   });
 
   it('returns 400 when idToken is missing', async () => {
@@ -85,13 +92,29 @@ describe('POST /api/auth/set-viewer-claim', () => {
     expect(body.ok).toBe(true);
   });
 
-  it('sets role claim to viewer', async () => {
+  it('sets role claim to viewer for accounts without a role', async () => {
     const req = makeRequest({ idToken: 'valid-token' });
     await POST(req);
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('uid-viewer', { role: 'viewer' });
   });
 
-  it('writes user profile to Firestore', async () => {
+  it('does NOT overwrite an existing child role claim', async () => {
+    mockGetUser.mockResolvedValue({ customClaims: { role: 'child' } });
+    const req = makeRequest({ idToken: 'valid-token' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockSetCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('does NOT downgrade an existing parent role claim', async () => {
+    mockGetUser.mockResolvedValue({ customClaims: { role: 'parent' } });
+    const req = makeRequest({ idToken: 'valid-token' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockSetCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('writes user profile to Firestore when none exists', async () => {
     const req = makeRequest({ idToken: 'valid-token' });
     await POST(req);
     expect(mockDocSet).toHaveBeenCalledWith(
@@ -101,5 +124,12 @@ describe('POST /api/auth/set-viewer-claim', () => {
         role: 'viewer',
       }),
     );
+  });
+
+  it('does NOT overwrite an existing user profile', async () => {
+    mockDocGet.mockResolvedValue({ exists: true });
+    const req = makeRequest({ idToken: 'valid-token' });
+    await POST(req);
+    expect(mockDocSet).not.toHaveBeenCalled();
   });
 });

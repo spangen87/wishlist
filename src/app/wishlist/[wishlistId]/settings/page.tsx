@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
+import { resolveDisplayName } from '@/lib/displayName';
 import Link from 'next/link';
 import { LightShell, ArrowLeft, Calendar, UserIcon } from '@/components/galaxy';
 
@@ -521,8 +522,7 @@ export default function WishlistSettingsPage({
           viewerUids.map(async (uid) => {
             try {
               const uSnap = await getDoc(doc(db, 'users', uid));
-              const uData = uSnap.data();
-              return { uid, displayName: uData?.username ?? uData?.email ?? uid };
+              return { uid, displayName: resolveDisplayName(uSnap.data(), uid) };
             } catch {
               return { uid, displayName: uid };
             }
@@ -577,10 +577,16 @@ export default function WishlistSettingsPage({
 
       <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl flex flex-col gap-3">
         <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
-        <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
-        <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
+        <ShareLinkPanel
+          wishlistId={wishlistId}
+          viewers={viewers}
+          onViewerRemoved={(uid) => setViewers((prev) => prev.filter((v) => v.uid !== uid))}
+        />
+        {/* Co-parent invites are parent-only: the link grants full admin rights
+            (password reset, account deletion) — a child must not hand that out. */}
         {accessType === 'parent' && (
           <>
+            <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
             <ResetChildPasswordSection childUid={wishlistId} />
             <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
           </>

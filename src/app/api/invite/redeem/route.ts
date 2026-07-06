@@ -21,6 +21,24 @@ export async function POST(request: NextRequest) {
 
   const { uid } = decoded;
 
+  // Look up the caller's CURRENT role claim (authoritative — the token's claim
+  // can be up to an hour stale). Child accounts must never redeem invites:
+  // overwriting a child's role claim would break their routing, and a child
+  // must not gain viewer access to a sibling's purchase status.
+  let currentRole: string | undefined;
+  try {
+    const userRecord = await adminAuth.getUser(uid);
+    currentRole = userRecord.customClaims?.role as string | undefined;
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (currentRole === 'child') {
+    return NextResponse.json(
+      { error: 'CHILD_ACCOUNT', message: 'Barnkonton kan inte gå med i andra önskelistor.' },
+      { status: 403 },
+    );
+  }
+
   // Step 2: Read invite — Admin SDK only
   const inviteRef = adminDb.collection('invites').doc(token);
   const inviteSnap = await inviteRef.get();
@@ -63,12 +81,14 @@ export async function POST(request: NextRequest) {
       parentUids: FieldValue.arrayUnion(uid),
     });
 
-    // Upgrade claim to parent (even if currently viewer — D-12)
-    await adminAuth.setCustomUserClaims(uid, { role: 'parent' });
+    // Upgrade claim to parent (viewer → parent is allowed — D-12)
+    if (currentRole !== 'parent') {
+      await adminAuth.setCustomUserClaims(uid, { role: 'parent' });
+    }
 
-    // Upsert user profile
+    // Upsert user profile (merge — never wipe existing profile fields)
     await adminDb.collection('users').doc(uid).set(
-      { role: 'parent' },
+      { uid, role: 'parent' },
       { merge: true }
     );
 
@@ -85,12 +105,15 @@ export async function POST(request: NextRequest) {
     viewerUids: FieldValue.arrayUnion(uid),
   });
 
-  await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
-
-  await adminDb.collection('users').doc(uid).set(
-    { role: 'viewer' },
-    { merge: true }
-  );
+  // Only set the viewer claim on accounts without a role — a parent redeeming
+  // a viewer link keeps their parent claim (roles are never downgraded).
+  if (!currentRole) {
+    await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
+    await adminDb.collection('users').doc(uid).set(
+      { uid, role: 'viewer' },
+      { merge: true }
+    );
+  }
 
   return NextResponse.json({ ok: true, wishlistId, alreadyViewer: false });
 }

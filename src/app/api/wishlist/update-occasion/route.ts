@@ -19,12 +19,21 @@ export async function POST(request: NextRequest) {
   }
 
   if (occasion != null) {
-    if (typeof occasion.name !== 'string' || !occasion.name.trim()) {
-      return NextResponse.json({ error: 'occasion.name required' }, { status: 400 });
+    if (typeof occasion.name !== 'string' || !occasion.name.trim() || occasion.name.trim().length > 100) {
+      return NextResponse.json({ error: 'occasion.name required (max 100 tecken)' }, { status: 400 });
     }
     if (typeof occasion.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(occasion.date)) {
       return NextResponse.json(
         { error: 'occasion.date must be YYYY-MM-DD' },
+        { status: 400 },
+      );
+    }
+    // The regex allows impossible dates like 2026-13-99 — round-trip through
+    // Date to ensure it's a real calendar date.
+    const parsed = new Date(occasion.date + 'T00:00:00Z');
+    if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== occasion.date) {
+      return NextResponse.json(
+        { error: 'occasion.date is not a valid date' },
         { status: 400 },
       );
     }

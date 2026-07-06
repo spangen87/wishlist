@@ -41,7 +41,15 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.childUid
         && request.resource.data.viewerUids == []
         && request.resource.data.parentUids == [];
-      allow update, delete: if isOwner(wishlistId);
+      // Owner updates must NOT touch the membership fields. If the child could
+      // edit viewerUids/parentUids they could add their own UID and pass the
+      // isViewer/isParent checks on purchaseStatus + activityLog below — which
+      // would break the irreversible privacy boundary (D-03). Membership is
+      // managed exclusively by the Admin SDK (invite redemption, removal).
+      allow update: if isOwner(wishlistId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['viewerUids', 'parentUids', 'childUid']);
+      allow delete: if isOwner(wishlistId);
 
       // Items subcollection — child-readable AND child-writable (D-02)
       // Viewers can also read items (to show the wishlist to them)
@@ -57,28 +65,43 @@ service cloud.firestore {
                 && request.resource.data.photoData.size() <= 300000
                 && request.resource.data.photoData.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'));
         }
+        // Cap free-text fields so a single item can't bloat the document
+        // (limits must match the server-side caps in the API routes).
+        function hasValidItemFields() {
+          return request.resource.data.title is string
+            && request.resource.data.title.size() >= 1
+            && request.resource.data.title.size() <= 200
+            && (!('note' in request.resource.data)
+                || (request.resource.data.note is string
+                    && request.resource.data.note.size() <= 1000))
+            && (!('productUrl' in request.resource.data)
+                || (request.resource.data.productUrl is string
+                    && request.resource.data.productUrl.size() <= 2048
+                    && request.resource.data.productUrl.matches('https?://.*')))
+            && (!('imageUrl' in request.resource.data)
+                || (request.resource.data.imageUrl is string
+                    && request.resource.data.imageUrl.size() <= 2048
+                    && request.resource.data.imageUrl.matches('https?://.*')));
+        }
         allow read: if isAuthenticated() && (isOwner(wishlistId) || isViewer(wishlistId) || isParent(wishlistId));
-        allow create: if (isOwner(wishlistId) || isParent(wishlistId)) && hasValidPhotoData();
+        allow create: if (isOwner(wishlistId) || isParent(wishlistId))
+          && hasValidPhotoData() && hasValidItemFields();
         allow delete: if isOwner(wishlistId) || isParent(wishlistId);
         allow update: if (isOwner(wishlistId) ||
           (isParent(wishlistId) &&
            !resource.data.diff(request.resource.data).affectedKeys().hasAny(['isFavorite'])))
-          && hasValidPhotoData();
+          && hasValidPhotoData() && hasValidItemFields();
       }
 
-      // Purchase status subcollection — viewers AND parents can read/write, child CANNOT (D-03)
+      // Purchase status subcollection — viewers AND parents can read, child CANNOT (D-03)
       // This is the irreversible privacy boundary. Child UID is NOT in viewerUids or parentUids.
       // Do NOT add any rule that allows childUid to read this subcollection.
+      // All writes go through the API routes (Admin SDK) which enforce that a
+      // viewer can only touch their own purchase/reservation/notes — client
+      // writes are forbidden so viewers can't tamper with each other's data.
       match /purchaseStatus/{itemId} {
         allow read: if isViewer(wishlistId) || isParent(wishlistId);
-        allow write: if (isViewer(wishlistId) || isParent(wishlistId))
-          && (request.resource.data.purchasedBy == request.auth.uid
-              || request.resource.data.purchasedBy == null)
-          && (
-              !('reservedBy' in request.resource.data)
-              || request.resource.data.reservedBy == request.auth.uid
-              || request.resource.data.reservedBy == null
-          );
+        allow write: if false; // Admin SDK only (API routes)
       }
 
       // Activity log subcollection — viewers AND parents can read, written via Admin SDK only (D-18)

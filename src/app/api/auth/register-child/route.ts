@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
+// Lowercase letters/digits plus . _ - so the username is a valid Firestore
+// doc ID and produces a valid synthetic email (no spaces, no '/', no '@').
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,30}$/;
+const MAX_CHILDREN_PER_PARENT = 10;
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const { username, password, displayName, age, viewerIdToken } = body as {
@@ -16,6 +21,29 @@ export async function POST(request: NextRequest) {
   if (!username || !password || !displayName || !viewerIdToken) {
     return NextResponse.json(
       { error: 'username, password, displayName, and viewerIdToken required' },
+      { status: 400 },
+    );
+  }
+
+  // Normalise: lowercase + trim (per anti-patterns in research)
+  const usernameLower = username.trim().toLowerCase();
+  if (!USERNAME_PATTERN.test(usernameLower)) {
+    return NextResponse.json(
+      { error: 'Användarnamnet får bara innehålla små bokstäver (a–z), siffror, punkt, bindestreck och understreck (3–30 tecken).' },
+      { status: 400 },
+    );
+  }
+
+  if (password.length < 6) {
+    return NextResponse.json(
+      { error: 'Lösenordet måste vara minst 6 tecken.' },
+      { status: 400 },
+    );
+  }
+
+  if (displayName.trim().length === 0 || displayName.trim().length > 50) {
+    return NextResponse.json(
+      { error: 'Visningsnamnet måste vara 1–50 tecken.' },
       { status: 400 },
     );
   }
@@ -34,13 +62,27 @@ export async function POST(request: NextRequest) {
   try {
     const decoded = await adminAuth.verifyIdToken(viewerIdToken, false);
     parentUid = decoded.uid;
+    // Child accounts must not create other child accounts.
+    if (decoded.role === 'child') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   } catch (err) {
     console.error('[register-child] verifyIdToken failed:', err);
     return NextResponse.json({ error: 'Invalid session, please log in again' }, { status: 401 });
   }
 
-  // Normalise: lowercase + trim (per anti-patterns in research)
-  const usernameLower = username.trim().toLowerCase();
+  // Simple abuse cap: a parent can have at most MAX_CHILDREN_PER_PARENT children.
+  const existingChildren = await adminDb
+    .collection('wishlists')
+    .where('parentUids', 'array-contains', parentUid)
+    .get();
+  if (existingChildren.size >= MAX_CHILDREN_PER_PARENT) {
+    return NextResponse.json(
+      { error: `Du kan ha högst ${MAX_CHILDREN_PER_PARENT} barnkonton.` },
+      { status: 429 },
+    );
+  }
+
   const syntheticEmail = `${usernameLower}@wishlist.internal`;
   const usernameRef = adminDb.collection('usernames').doc(usernameLower);
 
@@ -82,6 +124,9 @@ export async function POST(request: NextRequest) {
     const code = (err as { code?: string }).code;
     if (code === 'auth/email-already-exists') {
       return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
+    }
+    if (code === 'auth/invalid-password') {
+      return NextResponse.json({ error: 'Lösenordet är ogiltigt.' }, { status: 400 });
     }
     throw err;
   }

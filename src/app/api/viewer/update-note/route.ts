@@ -3,19 +3,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 
+// Cap so the shared purchaseStatus doc can't be bloated toward the 1 MiB
+// Firestore document limit (which would block ALL viewers on the item).
+const MAX_NOTE_CHARS = 1000;
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const { idToken, wishlistId, itemId, itemTitle, note } =
+  const { idToken, wishlistId, itemId, note } =
     body as {
       idToken?: string;
       wishlistId?: string;
       itemId?: string;
-      itemTitle?: string;
       note?: string;
     };
 
-  if (!idToken || !wishlistId || !itemId || itemTitle === undefined || note === undefined) {
+  if (!idToken || !wishlistId || !itemId || note === undefined) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  if (typeof note !== 'string' || note.length > MAX_NOTE_CHARS) {
+    return NextResponse.json(
+      { error: `Anteckningen får vara högst ${MAX_NOTE_CHARS} tecken.` },
+      { status: 400 },
+    );
   }
 
   let decoded;
@@ -37,6 +47,16 @@ export async function POST(request: NextRequest) {
   if (!viewerUids.includes(uid) && !parentUids.includes(uid)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  // The item must exist — its title is read server-side so the activity log
+  // can't be spoofed with fabricated entries.
+  const itemSnap = await adminDb
+    .collection('wishlists').doc(wishlistId)
+    .collection('items').doc(itemId).get();
+  if (!itemSnap.exists) {
+    return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+  }
+  const itemTitle: string = itemSnap.data()!.title ?? '';
 
   const statusRef = adminDb
     .collection('wishlists').doc(wishlistId)

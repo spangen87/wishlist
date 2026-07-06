@@ -89,6 +89,7 @@ function Step2({
           type="text"
           placeholder="t.ex. Elsas önskelista"
           required
+          maxLength={100}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="light-input"

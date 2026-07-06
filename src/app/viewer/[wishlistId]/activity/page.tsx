@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { subscribeToActivityLog, getActivityLogPage } from '@/lib/firebase/viewer';
 import { ActivityLogEntry } from '@/components/viewer/ActivityLogEntry';
+import { resolveDisplayName } from '@/lib/displayName';
 import type { ActivityLogDoc } from '@/types/firestore';
 import Link from 'next/link';
 import { LightShell, ArrowLeft } from '@/components/galaxy';
@@ -37,8 +38,7 @@ export default function ActivityLogPage({
     try {
       const snap = await getDoc(doc(db, 'users', uid));
       if (snap.exists()) {
-        const data = snap.data();
-        const name: string = data.username ?? data.email ?? uid;
+        const name = resolveDisplayName(snap.data(), uid);
         setDisplayNames((prev) => new Map(prev).set(uid, name));
       }
     } catch {

@@ -24,9 +24,12 @@ export async function getOrCreateWishlist(childUid: string): Promise<string> {
 }
 
 // Pattern 2 (RESEARCH.md): Real-time items listener ordered by position string.
+// onError fires on e.g. permission-denied (viewer removed, wishlist deleted) —
+// without it the caller's loading state would never resolve.
 export function subscribeToItems(
   wishlistId: string,
-  onItems: (items: WishItemDoc[]) => void
+  onItems: (items: WishItemDoc[]) => void,
+  onError?: () => void
 ): () => void {
   const q = query(
     collection(db, 'wishlists', wishlistId, 'items'),
@@ -38,7 +41,7 @@ export function subscribeToItems(
       ...d.data() as Omit<WishItemDoc, 'id'>,
     }));
     onItems(items);
-  });
+  }, () => { onError?.(); });
 }
 
 // Pattern 3 (RESEARCH.md): Add item — append after last item.

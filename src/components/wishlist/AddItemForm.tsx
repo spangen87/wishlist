@@ -127,6 +127,7 @@ export function AddItemForm({ wishlistId, lastPosition, photoCount, onClose }: A
           id={`add-${id}`}
           type={isPrice ? 'number' : isUrl ? 'url' : 'text'}
           min={isPrice ? '0' : undefined}
+          maxLength={id === 'title' ? 200 : isUrl ? 2048 : undefined}
           required={id === 'title'}
           autoFocus={id === 'title'}
           value={value as string | number}
@@ -228,6 +229,7 @@ export function AddItemForm({ wishlistId, lastPosition, photoCount, onClose }: A
         <textarea
           id="add-note"
           rows={3}
+          maxLength={1000}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="night-input italic resize-none"

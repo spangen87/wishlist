@@ -9,7 +9,7 @@ import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { Molly, NightShell, Sparkle } from '@/components/galaxy';
 
-type PageState = 'loading' | 'invalid' | 'logged-out' | 'joining' | 'error';
+type PageState = 'loading' | 'invalid' | 'logged-out' | 'joining' | 'error' | 'child-blocked';
 
 function InlineAuthForm({
   mode,
@@ -164,6 +164,12 @@ export default function InvitePage({
         return;
       }
 
+      if (res.status === 403) {
+        // Child accounts cannot redeem invites
+        setPageState('child-blocked');
+        return;
+      }
+
       if (!res.ok) {
         setPageState('error');
         return;
@@ -210,6 +216,29 @@ export default function InvitePage({
           <p role="alert" className="text-[14px] max-w-sm" style={{ color: 'var(--color-muted)' }}>
             Be den som skickade länken att skapa en ny delningslänk.
           </p>
+        </div>
+      </NightShell>
+    );
+  }
+
+  if (pageState === 'child-blocked') {
+    return (
+      <NightShell twinkleCount={20}>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 app-page text-center">
+          <Molly size={80} mood="sleepy" eyeColor="#0F1330" blushColor="#FF7AB8" />
+          <h1 className="font-display text-[24px] font-bold gradient-text">
+            Länken är för vuxna
+          </h1>
+          <p role="alert" className="text-[14px] max-w-sm" style={{ color: 'var(--color-muted)' }}>
+            Barnkonton kan inte gå med i andra önskelistor. Be en vuxen öppna länken i stället.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/wishlist')}
+            className="neon-cta-outline"
+          >
+            Till min önskelista
+          </button>
         </div>
       </NightShell>
     );

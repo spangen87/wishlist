@@ -19,16 +19,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Verify caller is a viewer on this wishlist (parent who just created the child account)
+  // Only the wishlist owner (child) or a parent may create share links.
+  // Viewers must NOT be able to invite more viewers — that would let any
+  // invited relative spread access without the parent's involvement.
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
   if (!wishlistSnap.exists) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
   const data = wishlistSnap.data()!;
   const isOwner = data.childUid === decoded.uid;
-  const isViewer = Array.isArray(data.viewerUids) && data.viewerUids.includes(decoded.uid);
   const isParent = Array.isArray(data.parentUids) && data.parentUids.includes(decoded.uid);
-  if (!isOwner && !isViewer && !isParent) {
+  if (!isOwner && !isParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

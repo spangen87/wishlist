@@ -4,7 +4,7 @@ import {
   assertSucceeds,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -40,6 +40,7 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
       await setDoc(doc(db, 'wishlists', WISHLIST_ID), {
         childUid: CHILD_UID,
         viewerUids: [VIEWER_UID],
+        parentUids: [],
         createdAt: new Date(),
       });
 
@@ -124,7 +125,9 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
     await assertSucceeds(getDoc(statusRef));
   });
 
-  it('ALLOW: viewer UID can write to purchaseStatus subcollection', async () => {
+  it('DENY: viewer UID cannot write purchaseStatus directly (Admin SDK only)', async () => {
+    // All purchase/reservation/note writes go through the API routes so a
+    // viewer can never tamper with another viewer's data client-side.
     const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
     const statusRef = doc(
       viewerCtx.firestore(),
@@ -133,7 +136,7 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
       'purchaseStatus',
       ITEM_ID
     );
-    await assertSucceeds(
+    await assertFails(
       setDoc(statusRef, {
         itemId: ITEM_ID,
         viewerUids: [VIEWER_UID],
@@ -152,6 +155,46 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
       ITEM_ID
     );
     await assertFails(getDoc(statusRef));
+  });
+
+  // === Wishlist membership fields are immutable for the owner ===
+  // If the child could edit viewerUids/parentUids they could add their own
+  // UID and read purchaseStatus — the privacy boundary would be gone.
+
+  it('DENY: child cannot add own UID to viewerUids on own wishlist', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const wlRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertFails(
+      updateDoc(wlRef, { viewerUids: [VIEWER_UID, CHILD_UID] })
+    );
+  });
+
+  it('DENY: child cannot add own UID to parentUids on own wishlist', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const wlRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertFails(
+      updateDoc(wlRef, { parentUids: [CHILD_UID] })
+    );
+  });
+
+  it('DENY: child cannot change childUid on own wishlist', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const wlRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertFails(
+      updateDoc(wlRef, { childUid: 'someone-else' })
+    );
+  });
+
+  it('ALLOW: child can update non-membership fields on own wishlist', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const wlRef = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertSucceeds(updateDoc(wlRef, { title: 'Min lista' }));
+  });
+
+  it('DENY: viewer cannot update the wishlist document', async () => {
+    const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
+    const wlRef = doc(viewerCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertFails(updateDoc(wlRef, { title: 'Hacked' }));
   });
 
   // === Items subcollection ===

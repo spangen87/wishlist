@@ -61,14 +61,18 @@ export default function WishlistPage() {
     }
   }, [loading, user, router]);
 
+  // Redirect all adult roles — a parent landing here would otherwise run
+  // getOrCreateWishlist(own uid) and create an orphaned wishlist for themselves.
+  // (role === null is left alone so a child with a missing claim isn't locked out.)
   useEffect(() => {
-    if (!loading && user && role === 'viewer') {
+    if (!loading && user && (role === 'viewer' || role === 'parent')) {
       router.push('/dashboard');
     }
   }, [loading, user, role, router]);
 
   useEffect(() => {
     if (loading || !user) return;
+    if (role === 'viewer' || role === 'parent') return;
     let unsubscribe: (() => void) | null = null;
 
     getOrCreateWishlist(user.uid).then((id) => {
@@ -83,7 +87,7 @@ export default function WishlistPage() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [loading, user]);
+  }, [loading, user, role]);
 
   function handleDragStart(event: { active: { id: string | number } }) {
     const found = items.find((i) => i.id === event.active.id);

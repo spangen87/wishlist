@@ -6,6 +6,7 @@ import { LinkIcon } from '@/components/galaxy';
 interface ShareLinkPanelProps {
   wishlistId: string;
   viewers: Array<{ uid: string; displayName: string }>;
+  onViewerRemoved?: (uid: string) => void;
 }
 
 const VIEWER_COLORS = ['#6E5BE8', '#FF7AB8', '#7DE3FF', '#85F2CA', '#FFD36E'];
@@ -16,13 +17,15 @@ function pickColor(seed: string) {
   return VIEWER_COLORS[h % VIEWER_COLORS.length];
 }
 
-export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
+export function ShareLinkPanel({ wishlistId, viewers, onViewerRemoved }: ShareLinkPanelProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmRemoveUid, setConfirmRemoveUid] = useState<string | null>(null);
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
 
   const inviteUrl = token
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${token}`
@@ -78,6 +81,26 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
       setTimeout(() => setCopyLabel('Kopiera'), 2000);
     } catch {
       setError('Kunde inte kopiera länken.');
+    }
+  }
+
+  async function handleRemoveViewer(uid: string) {
+    setRemovingUid(uid);
+    setError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/wishlist/remove-viewer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, viewerUid: uid }),
+      });
+      if (!res.ok) throw new Error('Failed to remove viewer');
+      setConfirmRemoveUid(null);
+      onViewerRemoved?.(uid);
+    } catch {
+      setError('Kunde inte ta bort betraktaren. Försök igen.');
+    } finally {
+      setRemovingUid(null);
     }
   }
 
@@ -215,10 +238,11 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
             {viewers.map(({ uid, displayName }) => {
               const accent = pickColor(uid);
               const initial = displayName.slice(0, 1).toUpperCase();
+              const confirming = confirmRemoveUid === uid;
               return (
                 <li
                   key={uid}
-                  className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1"
+                  className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1"
                   style={{ background: `${accent}1f` }}
                 >
                   <span
@@ -237,6 +261,42 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
                   <span className="text-[12px] font-semibold" style={{ color: accent }}>
                     {displayName}
                   </span>
+                  {confirming ? (
+                    <span className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveViewer(uid)}
+                        disabled={removingUid === uid}
+                        className="text-[11px] font-bold disabled:opacity-50"
+                        style={{ color: 'var(--color-destructive)' }}
+                      >
+                        {removingUid === uid ? 'Tar bort…' : 'Ta bort?'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemoveUid(null)}
+                        className="text-[11px]"
+                        style={{ color: 'var(--color-muted-light)' }}
+                      >
+                        Avbryt
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemoveUid(uid)}
+                      aria-label={`Ta bort ${displayName} som betraktare`}
+                      className="flex items-center justify-center text-[13px] leading-none"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        color: 'var(--color-muted-light)',
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               );
             })}

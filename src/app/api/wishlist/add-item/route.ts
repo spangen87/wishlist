@@ -4,6 +4,11 @@ import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { generateKeyBetween } from 'fractional-indexing';
 
+// Caps must match hasValidItemFields() in firestore.rules.
+const MAX_TITLE_CHARS = 200;
+const MAX_NOTE_CHARS = 1000;
+const MAX_URL_CHARS = 2048;
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const { idToken, wishlistId, title, productUrl, imageUrl, note, price, position } = body as {
@@ -24,6 +29,18 @@ export async function POST(request: NextRequest) {
   const trimmedTitle = title.trim();
   if (!trimmedTitle) {
     return NextResponse.json({ error: 'title must not be empty' }, { status: 400 });
+  }
+  if (trimmedTitle.length > MAX_TITLE_CHARS) {
+    return NextResponse.json(
+      { error: `Titeln får vara högst ${MAX_TITLE_CHARS} tecken.` },
+      { status: 400 },
+    );
+  }
+  if (note && note.length > MAX_NOTE_CHARS) {
+    return NextResponse.json(
+      { error: `Anteckningen får vara högst ${MAX_NOTE_CHARS} tecken.` },
+      { status: 400 },
+    );
   }
 
   let decoded;
@@ -71,7 +88,7 @@ export async function POST(request: NextRequest) {
   const SAFE_URL_PREFIXES = ['https://', 'http://'];
   if (productUrl?.trim()) {
     const url = productUrl.trim();
-    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p))) {
+    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p)) || url.length > MAX_URL_CHARS) {
       return NextResponse.json(
         { error: 'productUrl must start with https:// or http://' },
         { status: 400 }
@@ -81,7 +98,7 @@ export async function POST(request: NextRequest) {
   }
   if (imageUrl?.trim()) {
     const url = imageUrl.trim();
-    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p))) {
+    if (!SAFE_URL_PREFIXES.some(p => url.startsWith(p)) || url.length > MAX_URL_CHARS) {
       return NextResponse.json(
         { error: 'imageUrl must start with https:// or http://' },
         { status: 400 }
@@ -90,7 +107,7 @@ export async function POST(request: NextRequest) {
     itemData.imageUrl = url;
   }
   if (note?.trim()) itemData.note = note.trim();
-  if (typeof price === 'number' && !isNaN(price)) itemData.price = price;
+  if (typeof price === 'number' && isFinite(price) && price >= 0) itemData.price = price;
 
   await itemRef.set(itemData);
 

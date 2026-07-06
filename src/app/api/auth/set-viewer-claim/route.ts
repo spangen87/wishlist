@@ -19,14 +19,33 @@ export async function POST(request: NextRequest) {
   }
 
   const { uid, email } = decodedToken;
-  await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
 
-  await adminDb.collection('users').doc(uid).set({
-    uid,
-    email: email ?? '',
-    role: 'viewer',
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // Only meant for freshly registered accounts. Never change an existing role:
+  // a child calling this would corrupt their account, and a parent would be
+  // downgraded. Existing roles are simply kept (idempotent no-op).
+  let currentRole: string | undefined;
+  try {
+    const userRecord = await adminAuth.getUser(uid);
+    currentRole = userRecord.customClaims?.role as string | undefined;
+  } catch {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
+
+  if (!currentRole) {
+    await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
+  }
+
+  // Merge — never overwrite existing profile fields (username, displayName, age).
+  const userRef = adminDb.collection('users').doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) {
+    await userRef.set({
+      uid,
+      email: email ?? '',
+      role: currentRole ?? 'viewer',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

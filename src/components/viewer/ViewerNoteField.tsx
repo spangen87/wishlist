@@ -85,6 +85,7 @@ export function ViewerNoteField({
         rows={3}
         value={value}
         autoFocus
+        maxLength={1000}
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
         placeholder="Din anteckning…"

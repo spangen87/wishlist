@@ -73,6 +73,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           type="text"
           required
           autoFocus
+          maxLength={200}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="light-input"
@@ -128,6 +129,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
         <textarea
           id="parent-item-note"
           rows={2}
+          maxLength={1000}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="light-input italic resize-none"
