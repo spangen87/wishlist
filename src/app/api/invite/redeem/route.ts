@@ -51,26 +51,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Du kan inte gå med i din egen önskelista' }, { status: 409 });
   }
 
+  // The caller's existing role decides whether we may touch their claim at all.
+  // The claim in the idToken can be stale right after registration, so fall back
+  // to the users doc when the claim is missing.
+  let callerRole: string | undefined = decoded.role as string | undefined;
+  if (!callerRole) {
+    const callerSnap = await adminDb.collection('users').doc(uid).get();
+    callerRole = callerSnap.data()?.role;
+  }
+
   if (inviteType === 'parent') {
     // Parent invite branch (D-12)
+    // Child accounts must never gain parent powers — a co-parent link grants
+    // full control (delete account, reset password) over another child.
+    if (callerRole === 'child') {
+      return NextResponse.json(
+        { error: 'Barnkonton kan inte bli föräldrar för en önskelista.' },
+        { status: 403 },
+      );
+    }
+
     const existingParentUids: string[] = wishlistSnap.data()!.parentUids ?? [];
     if (existingParentUids.includes(uid)) {
       return NextResponse.json({ ok: true, wishlistId, wishlistRole: 'parent', alreadyMember: true });
     }
 
-    // Add to parentUids
+    // Add to parentUids; drop from viewerUids so the list doesn't show up twice
+    // on the dashboard after a viewer→parent upgrade.
     await adminDb.collection('wishlists').doc(wishlistId).update({
       parentUids: FieldValue.arrayUnion(uid),
+      viewerUids: FieldValue.arrayRemove(uid),
+      // A co-parent link grants full control — burn it after one successful use.
+      // The parent can always create a fresh link from settings.
+      currentParentInviteToken: FieldValue.delete(),
     });
+    await inviteRef.update({ active: false });
 
-    // Upgrade claim to parent (even if currently viewer — D-12)
-    await adminAuth.setCustomUserClaims(uid, { role: 'parent' });
-
-    // Upsert user profile
-    await adminDb.collection('users').doc(uid).set(
-      { role: 'parent' },
+    // Keep users/{childUid}.parentUids in sync — the account-delete route falls
+    // back to it when the wishlist doc is already gone.
+    await adminDb.collection('users').doc(childUid).set(
+      { parentUids: FieldValue.arrayUnion(uid) },
       { merge: true }
     );
+
+    // Upgrade claim to parent (viewer → parent is the intended upgrade, D-12)
+    if (callerRole !== 'parent') {
+      await adminAuth.setCustomUserClaims(uid, { role: 'parent' });
+      await adminDb.collection('users').doc(uid).set(
+        { role: 'parent' },
+        { merge: true }
+      );
+    }
 
     return NextResponse.json({ ok: true, wishlistId, wishlistRole: 'parent', alreadyMember: false });
   }
@@ -85,12 +116,16 @@ export async function POST(request: NextRequest) {
     viewerUids: FieldValue.arrayUnion(uid),
   });
 
-  await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
-
-  await adminDb.collection('users').doc(uid).set(
-    { role: 'viewer' },
-    { merge: true }
-  );
+  // Only assign the viewer role to accounts that have none yet. A parent or
+  // child clicking a share link must keep their existing role — overwriting it
+  // used to break their own dashboard/wishlist routing.
+  if (!callerRole) {
+    await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
+    await adminDb.collection('users').doc(uid).set(
+      { role: 'viewer' },
+      { merge: true }
+    );
+  }
 
   return NextResponse.json({ ok: true, wishlistId, alreadyViewer: false });
 }

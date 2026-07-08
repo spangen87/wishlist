@@ -19,14 +19,33 @@ export async function POST(request: NextRequest) {
   }
 
   const { uid, email } = decodedToken;
-  await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
 
-  await adminDb.collection('users').doc(uid).set({
-    uid,
-    email: email ?? '',
-    role: 'viewer',
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // Bootstrap-only: assign viewer to accounts without a role. A parent or
+  // child replaying this call must keep their higher role — downgrading it
+  // would break their own account's routing and permissions.
+  const userRecord = await adminAuth.getUser(uid);
+  const existingRole = userRecord.customClaims?.role as string | undefined;
+  if (existingRole && existingRole !== 'viewer') {
+    return NextResponse.json({ ok: true, role: existingRole });
+  }
 
-  return NextResponse.json({ ok: true });
+  if (!existingRole) {
+    await adminAuth.setCustomUserClaims(uid, { role: 'viewer' });
+  }
+
+  // Merge so a repeat call can't wipe profile fields
+  const userRef = adminDb.collection('users').doc(uid);
+  const userSnap = await userRef.get();
+  if (userSnap.exists) {
+    await userRef.set({ role: 'viewer' }, { merge: true });
+  } else {
+    await userRef.set({
+      uid,
+      email: email ?? '',
+      role: 'viewer',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  return NextResponse.json({ ok: true, role: 'viewer' });
 }

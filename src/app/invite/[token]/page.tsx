@@ -134,6 +134,7 @@ export default function InvitePage({
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [invite, setInvite] = useState<{ type: 'parent' | 'viewer'; childName: string } | null>(null);
   const initialAuthCheckedRef = useRef(false);
 
   useEffect(() => {
@@ -141,12 +142,33 @@ export default function InvitePage({
     if (initialAuthCheckedRef.current) return;
     initialAuthCheckedRef.current = true;
 
-    if (user) {
-      setPageState('joining');
-      redeemToken();
-    } else {
-      setPageState('logged-out');
-    }
+    // Validate the token up front so a dead link is caught BEFORE the visitor
+    // creates an account, and so we can show whose list this is.
+    (async () => {
+      try {
+        const res = await fetch(`/api/invite/info?token=${encodeURIComponent(token)}`);
+        if (res.ok) {
+          const info = await res.json();
+          if (!info.valid) {
+            setPageState('invalid');
+            return;
+          }
+          setInvite({
+            type: info.type === 'parent' ? 'parent' : 'viewer',
+            childName: info.childName ?? '',
+          });
+        }
+      } catch {
+        // Network hiccup — fall through; redeem gives the authoritative answer
+      }
+
+      if (user) {
+        setPageState('joining');
+        redeemToken();
+      } else {
+        setPageState('logged-out');
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user]);
 
@@ -171,14 +193,19 @@ export default function InvitePage({
 
       const data = await res.json();
 
-      if (data.alreadyViewer) {
-        router.push(`/viewer/${data.wishlistId}`);
+      // A new co-parent lands on the dashboard where the child now appears
+      // under "Mina barn"; viewers go straight to the list.
+      const target =
+        data.wishlistRole === 'parent' ? '/dashboard' : `/viewer/${data.wishlistId}`;
+
+      if (data.alreadyViewer || data.alreadyMember) {
+        router.push(target);
         return;
       }
 
       await auth.currentUser?.getIdToken(/* forceRefresh = */ true);
       await refreshRole();
-      router.push(`/viewer/${data.wishlistId}`);
+      router.push(target);
     } catch {
       setPageState('error');
     }
@@ -254,11 +281,24 @@ export default function InvitePage({
           <Molly size={80} mood="excited" eyeColor="#0F1330" blushColor="#FF7AB8" style={{ position: 'relative' }} />
         </div>
         <h1 className="font-display font-bold text-[26px] gradient-text text-center leading-tight">
-          Du har bjudits in
-          <br />till en önskelista
+          {invite?.type === 'parent' ? (
+            <>
+              Du har bjudits in
+              <br />som förälder
+            </>
+          ) : (
+            <>
+              Du har bjudits in
+              <br />till {invite?.childName ? `${invite.childName}s` : 'en'} önskelista
+            </>
+          )}
         </h1>
         <p className="mt-3 text-[13px] text-center max-w-xs" style={{ color: 'var(--color-muted)' }}>
-          Logga in eller skapa ett konto för att se listan och koordinera inköp utan att förstöra överraskningen.
+          {invite?.type === 'parent'
+            ? `Logga in eller skapa ett konto för att hjälpa till att hantera ${
+                invite.childName ? `${invite.childName}s` : 'barnets'
+              } önskelista.`
+            : 'Logga in eller skapa ett konto för att se listan och koordinera inköp utan att förstöra överraskningen.'}
         </p>
 
         <div className="w-full max-w-sm mt-7 night-card p-6">
