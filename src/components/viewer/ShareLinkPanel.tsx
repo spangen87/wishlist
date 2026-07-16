@@ -23,6 +23,12 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerList, setViewerList] = useState(viewers);
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    setViewerList(viewers);
+  }, [viewers]);
 
   const inviteUrl = token
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${token}`
@@ -78,6 +84,28 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
       setTimeout(() => setCopyLabel('Kopiera'), 2000);
     } catch {
       setError('Kunde inte kopiera länken.');
+    }
+  }
+
+  async function handleRemoveViewer(uid: string, displayName: string) {
+    if (!window.confirm(`Ta bort ${displayName} från listan? Personen ser inte längre önskelistan.`)) {
+      return;
+    }
+    setRemovingUid(uid);
+    setError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/wishlist/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, memberUid: uid, memberType: 'viewer' }),
+      });
+      if (!res.ok) throw new Error('Failed to remove viewer');
+      setViewerList((prev) => prev.filter((v) => v.uid !== uid));
+    } catch {
+      setError('Kunde inte ta bort personen. Försök igen.');
+    } finally {
+      setRemovingUid(null);
     }
   }
 
@@ -203,22 +231,22 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
         </div>
       )}
 
-      {viewers.length > 0 && (
+      {viewerList.length > 0 && (
         <div className="mt-5">
           <h3
             className="text-[10px] font-bold tracking-caps mb-2"
             style={{ color: 'var(--color-muted-light)' }}
           >
-            Betraktare ({viewers.length})
+            Betraktare ({viewerList.length})
           </h3>
           <ul className="flex flex-wrap gap-2">
-            {viewers.map(({ uid, displayName }) => {
+            {viewerList.map(({ uid, displayName }) => {
               const accent = pickColor(uid);
               const initial = displayName.slice(0, 1).toUpperCase();
               return (
                 <li
                   key={uid}
-                  className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1"
+                  className="flex items-center gap-2 rounded-full pl-1 pr-1.5 py-1"
                   style={{ background: `${accent}1f` }}
                 >
                   <span
@@ -237,6 +265,22 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
                   <span className="text-[12px] font-semibold" style={{ color: accent }}>
                     {displayName}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveViewer(uid, displayName)}
+                    disabled={removingUid === uid}
+                    aria-label={`Ta bort ${displayName}`}
+                    className="flex items-center justify-center rounded-full disabled:opacity-50"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      color: accent,
+                      fontSize: 14,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </button>
                 </li>
               );
             })}

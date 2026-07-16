@@ -6,17 +6,21 @@
 
 const mockVerifyIdToken = jest.fn();
 const mockSetCustomUserClaims = jest.fn();
+const mockGetUser = jest.fn();
 
 const mockAdminAuth = {
   verifyIdToken: mockVerifyIdToken,
   setCustomUserClaims: mockSetCustomUserClaims,
+  getUser: mockGetUser,
 };
 
 const mockDocSet = jest.fn();
+const mockDocGet = jest.fn();
 const mockAdminDb = {
   collection: jest.fn(() => ({
     doc: jest.fn(() => ({
       set: mockDocSet,
+      get: mockDocGet,
     })),
   })),
 };
@@ -57,6 +61,8 @@ describe('POST /api/auth/set-viewer-claim', () => {
 
     mockVerifyIdToken.mockResolvedValue({ uid: 'uid-viewer', email: 'viewer@example.com' });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({ customClaims: undefined });
+    mockDocGet.mockResolvedValue({ exists: false, data: () => undefined });
     mockDocSet.mockResolvedValue(undefined);
   });
 
@@ -85,13 +91,13 @@ describe('POST /api/auth/set-viewer-claim', () => {
     expect(body.ok).toBe(true);
   });
 
-  it('sets role claim to viewer', async () => {
+  it('sets role claim to viewer for accounts without a role', async () => {
     const req = makeRequest({ idToken: 'valid-token' });
     await POST(req);
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('uid-viewer', { role: 'viewer' });
   });
 
-  it('writes user profile to Firestore', async () => {
+  it('writes user profile to Firestore when none exists', async () => {
     const req = makeRequest({ idToken: 'valid-token' });
     await POST(req);
     expect(mockDocSet).toHaveBeenCalledWith(
@@ -101,5 +107,31 @@ describe('POST /api/auth/set-viewer-claim', () => {
         role: 'viewer',
       }),
     );
+  });
+
+  it('does NOT downgrade an existing parent role', async () => {
+    mockGetUser.mockResolvedValue({ customClaims: { role: 'parent' } });
+    const req = makeRequest({ idToken: 'valid-token' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.role).toBe('parent');
+    expect(mockSetCustomUserClaims).not.toHaveBeenCalled();
+    expect(mockDocSet).not.toHaveBeenCalled();
+  });
+
+  it('does NOT downgrade an existing child role', async () => {
+    mockGetUser.mockResolvedValue({ customClaims: { role: 'child' } });
+    const req = makeRequest({ idToken: 'valid-token' });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockSetCustomUserClaims).not.toHaveBeenCalled();
+  });
+
+  it('merges instead of overwriting when a profile already exists', async () => {
+    mockDocGet.mockResolvedValue({ exists: true, data: () => ({ username: 'kalle' }) });
+    const req = makeRequest({ idToken: 'valid-token' });
+    await POST(req);
+    expect(mockDocSet).toHaveBeenCalledWith({ role: 'viewer' }, { merge: true });
   });
 });

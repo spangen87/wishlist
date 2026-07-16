@@ -31,6 +31,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Idempotent: reuse an existing active token instead of minting a new one.
+  // Overwriting currentInviteToken without deactivating the old invite used to
+  // leave orphaned tokens that stayed redeemable forever.
+  const existingToken: string | undefined = wishlistData.currentInviteToken;
+  if (existingToken) {
+    const existingSnap = await adminDb.collection('invites').doc(existingToken).get();
+    if (existingSnap.exists && existingSnap.data()!.active) {
+      return NextResponse.json({ token: existingToken });
+    }
+  }
+
   const token = randomBytes(24).toString('hex'); // 48 hex chars
 
   await adminDb.collection('invites').doc(token).set({

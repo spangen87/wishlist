@@ -265,14 +265,45 @@ function OccasionSection({
 function CoParentInviteSection({
   wishlistId,
   initialToken,
+  initialParents,
+  currentUid,
 }: {
   wishlistId: string;
   initialToken: string | null;
+  initialParents: Array<{ uid: string; displayName: string }>;
+  currentUid: string;
 }) {
   const [token, setToken] = useState<string | null>(initialToken);
   const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [parents, setParents] = useState(initialParents);
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
+
+  async function handleRemoveParent(uid: string, displayName: string) {
+    if (
+      !window.confirm(
+        `Ta bort ${displayName} som förälder? Personen förlorar all tillgång till att hantera önskelistan och barnkontot.`
+      )
+    )
+      return;
+    setRemovingUid(uid);
+    setError(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/wishlist/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, memberUid: uid, memberType: 'parent' }),
+      });
+      if (!res.ok) throw new Error();
+      setParents((prev) => prev.filter((p) => p.uid !== uid));
+    } catch {
+      setError('Kunde inte ta bort föräldern. Försök igen.');
+    } finally {
+      setRemovingUid(null);
+    }
+  }
 
   const inviteUrl =
     token && typeof window !== 'undefined' ? `${window.location.origin}/invite/${token}` : null;
@@ -315,8 +346,40 @@ function CoParentInviteSection({
         <h2 className="font-display font-bold text-[16px]">Co-förälder</h2>
       </div>
       <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-        Ge en annan förälder full tillgång att hantera önskelistan.
+        Ge en annan förälder full tillgång att hantera önskelistan. Länken slutar
+        gälla när den har använts en gång.
       </p>
+      {parents.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1.5">
+          {parents.map(({ uid, displayName }) => (
+            <li
+              key={uid}
+              className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
+              style={{ background: 'var(--color-accent-soft)' }}
+            >
+              <span className="text-[13px] font-semibold truncate" style={{ color: 'var(--color-ink-light)' }}>
+                {displayName}
+                {uid === currentUid && (
+                  <span className="font-normal" style={{ color: 'var(--color-muted-light)' }}>
+                    {' '}(du)
+                  </span>
+                )}
+              </span>
+              {uid !== currentUid && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveParent(uid, displayName)}
+                  disabled={removingUid === uid}
+                  className="text-[12px] font-bold shrink-0 disabled:opacity-50"
+                  style={{ color: 'var(--color-destructive)' }}
+                >
+                  {removingUid === uid ? 'Tar bort…' : 'Ta bort'}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       {error && (
         <p role="alert" className="mt-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
           {error}
@@ -472,6 +535,7 @@ export default function WishlistSettingsPage({
   const { user, loading } = useAuth();
 
   const [viewers, setViewers] = useState<Array<{ uid: string; displayName: string }>>([]);
+  const [parents, setParents] = useState<Array<{ uid: string; displayName: string }>>([]);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [accessType, setAccessType] = useState<'child' | 'parent' | null>(null);
@@ -516,19 +580,25 @@ export default function WishlistSettingsPage({
           // silent — header just omits the name
         }
 
-        const viewerUids: string[] = data.viewerUids ?? [];
-        const resolved = await Promise.all(
-          viewerUids.map(async (uid) => {
-            try {
-              const uSnap = await getDoc(doc(db, 'users', uid));
-              const uData = uSnap.data();
-              return { uid, displayName: uData?.username ?? uData?.email ?? uid };
-            } catch {
-              return { uid, displayName: uid };
-            }
-          })
-        );
-        setViewers(resolved);
+        const resolveNames = (uids: string[]) =>
+          Promise.all(
+            uids.map(async (uid) => {
+              try {
+                const uSnap = await getDoc(doc(db, 'users', uid));
+                const uData = uSnap.data();
+                return { uid, displayName: uData?.username ?? uData?.email ?? uid };
+              } catch {
+                return { uid, displayName: uid };
+              }
+            })
+          );
+
+        const [resolvedViewers, resolvedParents] = await Promise.all([
+          resolveNames(data.viewerUids ?? []),
+          resolveNames(parentUids),
+        ]);
+        setViewers(resolvedViewers);
+        setParents(resolvedParents);
       } catch {
         router.push('/dashboard');
       } finally {
@@ -578,9 +648,14 @@ export default function WishlistSettingsPage({
       <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl flex flex-col gap-3">
         <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
-        <CoParentInviteSection wishlistId={wishlistId} initialToken={initialParentToken} />
         {accessType === 'parent' && (
           <>
+            <CoParentInviteSection
+              wishlistId={wishlistId}
+              initialToken={initialParentToken}
+              initialParents={parents}
+              currentUid={user.uid}
+            />
             <ResetChildPasswordSection childUid={wishlistId} />
             <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
           </>
