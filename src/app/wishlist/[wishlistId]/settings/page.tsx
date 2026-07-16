@@ -154,9 +154,11 @@ function ResetChildPasswordSection({ childUid }: { childUid: string }) {
 function OccasionSection({
   wishlistId,
   initialOccasion,
+  locked,
 }: {
   wishlistId: string;
   initialOccasion: { name: string; date: string } | null;
+  locked?: boolean;
 }) {
   const [name, setName] = useState(initialOccasion?.name ?? '');
   const [date, setDate] = useState(initialOccasion?.date ?? '');
@@ -196,6 +198,40 @@ function OccasionSection({
     } finally {
       setSaving(false);
     }
+  }
+
+  if (locked) {
+    const formattedDate = initialOccasion
+      ? new Date(initialOccasion.date + 'T00:00:00').toLocaleDateString('sv-SE', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : '';
+    return (
+      <section className="light-card p-5">
+        <div className="flex items-center gap-2">
+          <Calendar size={16} color="var(--color-accent)" />
+          <h2 className="font-display font-bold text-[16px]">Tillfälle</h2>
+        </div>
+        {initialOccasion && (
+          <div
+            className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
+            style={{ background: 'var(--color-accent-soft)' }}
+          >
+            <span className="text-[14px] font-bold" style={{ color: 'var(--color-accent)' }}>
+              {initialOccasion.name}
+            </span>
+            <span className="text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
+              · {formattedDate}
+            </span>
+          </div>
+        )}
+        <p className="mt-3 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+          Tillfället och datumet bestäms av din förälder och kan inte ändras här.
+        </p>
+      </section>
+    );
   }
 
   return (
@@ -399,7 +435,7 @@ function CoParentInviteSection({
             size={1}
             value={inviteUrl ?? ''}
             aria-label="Co-förälderlänk"
-            className="flex-1 min-w-0 w-0 bg-transparent border-0 outline-none text-[12px] font-mono"
+            className="flex-1 min-w-0 w-0 bg-transparent border-0 outline-none text-[16px] font-mono"
             style={{ color: 'var(--color-ink-light)' }}
           />
           <button
@@ -646,7 +682,11 @@ export default function WishlistSettingsPage({
       </header>
 
       <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl flex flex-col gap-3">
-        <OccasionSection wishlistId={wishlistId} initialOccasion={initialOccasion} />
+        <OccasionSection
+          wishlistId={wishlistId}
+          initialOccasion={initialOccasion}
+          locked={accessType === 'child' && parents.length > 0 && initialOccasion !== null}
+        />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
         {accessType === 'parent' && (
           <>

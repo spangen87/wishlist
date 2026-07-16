@@ -242,6 +242,84 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
     );
   });
 
+  // === occasion lock on the wishlist document ===
+  // Once the list has parents and an occasion is set, the child cannot
+  // change or clear the occasion — parents manage it via the Admin SDK.
+
+  const PARENT_UID = 'parent-uid-789';
+
+  it('DENY: child cannot change occasion when a parent manages the list and occasion is set', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'wishlists', WISHLIST_ID),
+        { parentUids: [PARENT_UID], occasion: { name: 'Födelsedag', date: '2026-09-12' } },
+        { merge: true }
+      );
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    await assertFails(
+      setDoc(
+        doc(childCtx.firestore(), 'wishlists', WISHLIST_ID),
+        { occasion: { name: 'Jul', date: '2026-12-24' } },
+        { merge: true }
+      )
+    );
+  });
+
+  it('ALLOW: child can still update other wishlist fields when occasion is locked', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'wishlists', WISHLIST_ID),
+        { parentUids: [PARENT_UID], occasion: { name: 'Födelsedag', date: '2026-09-12' } },
+        { merge: true }
+      );
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    await assertSucceeds(
+      setDoc(
+        doc(childCtx.firestore(), 'wishlists', WISHLIST_ID),
+        { title: 'Min lista' },
+        { merge: true }
+      )
+    );
+  });
+
+  it('ALLOW: child can set occasion when the list has no parents', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'wishlists', WISHLIST_ID),
+        { parentUids: [] },
+        { merge: true }
+      );
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    await assertSucceeds(
+      setDoc(
+        doc(childCtx.firestore(), 'wishlists', WISHLIST_ID),
+        { occasion: { name: 'Jul', date: '2026-12-24' } },
+        { merge: true }
+      )
+    );
+  });
+
+  it('ALLOW: child can set occasion when parents exist but none is set yet', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'wishlists', WISHLIST_ID),
+        { parentUids: [PARENT_UID] },
+        { merge: true }
+      );
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    await assertSucceeds(
+      setDoc(
+        doc(childCtx.firestore(), 'wishlists', WISHLIST_ID),
+        { occasion: { name: 'Jul', date: '2026-12-24' } },
+        { merge: true }
+      )
+    );
+  });
+
   // === invites collection — Admin SDK only ===
 
   it('DENY: authenticated user cannot read invites collection', async () => {
