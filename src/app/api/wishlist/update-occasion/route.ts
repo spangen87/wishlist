@@ -48,6 +48,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Once a parent manages the list and an occasion is set, the child can no
+  // longer change or clear it (mirrors the firestore.rules occasion lock).
+  const hasParents = Array.isArray(data.parentUids) && data.parentUids.length > 0;
+  if (isOwner && !isParent && hasParents && data.occasion != null) {
+    return NextResponse.json(
+      { error: 'Occasion is locked — a parent manages it' },
+      { status: 403 },
+    );
+  }
+
   if (occasion == null) {
     await adminDb.collection('wishlists').doc(wishlistId).update({
       occasion: FieldValue.delete(),

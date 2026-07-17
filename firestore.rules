@@ -41,7 +41,16 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.childUid
         && request.resource.data.viewerUids == []
         && request.resource.data.parentUids == [];
-      allow update, delete: if isOwner(wishlistId);
+      // Occasion lock: once the list has parents and an occasion is set,
+      // the child can no longer change or clear it — parents manage it
+      // (via the update-occasion API route, which uses the Admin SDK).
+      allow update: if isOwner(wishlistId) && (
+        !resource.data.diff(request.resource.data).affectedKeys().hasAny(['occasion'])
+        || !('parentUids' in resource.data)
+        || resource.data.parentUids.size() == 0
+        || !('occasion' in resource.data)
+      );
+      allow delete: if isOwner(wishlistId);
 
       // Items subcollection — child-readable AND child-writable (D-02)
       // Viewers can also read items (to show the wishlist to them)

@@ -27,6 +27,7 @@ import {
   Cog,
   LogOut,
   Sparkle,
+  Heart,
 } from '@/components/galaxy';
 
 export default function WishlistPage() {
@@ -95,19 +96,37 @@ export default function WishlistPage() {
     setActiveItem(null);
     if (!over || active.id === over.id || !wishlistId) return;
 
-    const oldIndex = items.findIndex((i) => i.id === active.id);
-    const newIndex = items.findIndex((i) => i.id === over.id);
+    // Hearted items live in their own section above the rest, so reordering
+    // is only meaningful within the same section.
+    const activeDoc = items.find((i) => i.id === active.id);
+    const overDoc = items.find((i) => i.id === over.id);
+    if (!activeDoc || !overDoc || !!activeDoc.isFavorite !== !!overDoc.isFavorite) return;
+
+    const group = items.filter((i) => !!i.isFavorite === !!activeDoc.isFavorite);
+    const oldIndex = group.findIndex((i) => i.id === active.id);
+    const newIndex = group.findIndex((i) => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const remaining = items.filter((i) => i.id !== active.id);
+    const remaining = group.filter((i) => i.id !== active.id);
     const prevPos = remaining[newIndex - 1]?.position ?? null;
     const nextPos = remaining[newIndex]?.position ?? null;
 
     // Optimistic reorder so the card stays where it was dropped instead of
     // snapping back while the write is in flight; the Firestore subscription
-    // remains the source of truth once the snapshot arrives.
+    // remains the source of truth once the snapshot arrives. Only the
+    // section's members move — they are written back into the array slots
+    // they already occupy so the other section is untouched.
     const previousItems = items;
-    setItems(arrayMove(items, oldIndex, newIndex));
+    const slots = items
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => !!item.isFavorite === !!activeDoc.isFavorite)
+      .map(({ idx }) => idx);
+    const reorderedGroup = arrayMove(group, oldIndex, newIndex);
+    const optimistic = [...items];
+    slots.forEach((slot, k) => {
+      optimistic[slot] = reorderedGroup[k];
+    });
+    setItems(optimistic);
 
     try {
       await updateItemPosition(wishlistId, active.id as string, prevPos, nextPos);
@@ -120,7 +139,11 @@ export default function WishlistPage() {
   if (!user) return null;
 
   const lastPosition = items.length > 0 ? items[items.length - 1].position : null;
-  const totalFavorites = items.filter((i) => i.isFavorite).length;
+  // Hearted items float to the top in their own section — same grouping the
+  // parents/relatives see, so both sides read the list in the same order.
+  const favoriteItems = items.filter((i) => i.isFavorite);
+  const otherItems = items.filter((i) => !i.isFavorite);
+  const totalFavorites = favoriteItems.length;
   const totalPhotos = items.filter((i) => !!i.photoData).length;
   const isEmpty = items.length === 0 && !showAddForm;
 
@@ -183,20 +206,62 @@ export default function WishlistPage() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                <ul role="list" className="flex flex-col gap-2.5">
-                  {items.map((item, idx) => (
-                    <WishItemCard
-                      key={item.id}
-                      item={item}
-                      wishlistId={wishlistId!}
-                      totalFavorites={totalFavorites}
-                      totalPhotos={totalPhotos}
-                      index={idx}
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
+              {favoriteItems.length > 0 && (
+                <section className="mb-5">
+                  <h2
+                    className="flex items-center gap-1.5 text-[10px] font-bold tracking-caps mb-3 px-1"
+                    style={{ color: 'var(--color-pink)' }}
+                  >
+                    <Heart size={11} color="var(--color-pink)" /> Favoriter
+                  </h2>
+                  <SortableContext
+                    items={favoriteItems.map((i) => i.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <ul role="list" className="flex flex-col gap-2.5">
+                      {favoriteItems.map((item, idx) => (
+                        <WishItemCard
+                          key={item.id}
+                          item={item}
+                          wishlistId={wishlistId!}
+                          totalFavorites={totalFavorites}
+                          totalPhotos={totalPhotos}
+                          index={idx}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </section>
+              )}
+              {otherItems.length > 0 && (
+                <section>
+                  {favoriteItems.length > 0 && (
+                    <h2
+                      className="text-[10px] font-bold tracking-caps mb-3 px-1"
+                      style={{ color: 'var(--color-muted)' }}
+                    >
+                      Övriga önskemål
+                    </h2>
+                  )}
+                  <SortableContext
+                    items={otherItems.map((i) => i.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <ul role="list" className="flex flex-col gap-2.5">
+                      {otherItems.map((item, idx) => (
+                        <WishItemCard
+                          key={item.id}
+                          item={item}
+                          wishlistId={wishlistId!}
+                          totalFavorites={totalFavorites}
+                          totalPhotos={totalPhotos}
+                          index={favoriteItems.length + idx}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </section>
+              )}
               <DragOverlay>
                 {activeItem ? (
                   <div className="opacity-90 rotate-1 shadow-xl">

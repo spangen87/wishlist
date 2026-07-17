@@ -178,7 +178,7 @@ function Step3({ wishlistId }: { wishlistId: string }) {
             size={1}
             value={inviteUrl ?? ''}
             aria-label="Delningslänk"
-            className="flex-1 min-w-0 w-0 bg-transparent border-0 outline-none text-[12px] font-mono"
+            className="flex-1 min-w-0 w-0 bg-transparent border-0 outline-none text-[16px] font-mono"
             style={{ color: 'var(--color-ink-light)' }}
           />
           <button

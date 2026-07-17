@@ -223,7 +223,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
               value={editProductUrl}
               onChange={(e) => setEditProductUrl(e.target.value)}
               onBlur={(e) => setEditProductUrl(normalizeUrl(e.target.value))}
-              className="night-input font-mono text-[12px]"
+              className="night-input font-mono"
             />
           </div>
           <div>
@@ -240,7 +240,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
               value={editImageUrl}
               onChange={(e) => setEditImageUrl(e.target.value)}
               onBlur={(e) => setEditImageUrl(normalizeUrl(e.target.value))}
-              className="night-input font-mono text-[12px]"
+              className="night-input font-mono"
             />
           </div>
           <div>

@@ -139,7 +139,7 @@ export function AddItemForm({ wishlistId, lastPosition, photoCount, onClose }: A
               ? 'https://…'
               : undefined
           }
-          className={`night-input ${isUrl ? 'font-mono text-[12px]' : ''}`}
+          className={`night-input ${isUrl ? 'font-mono' : ''}`}
           style={{ boxShadow: `inset 0 0 0 1px ${accent}33` }}
         />
         {id === 'title' && titleError && (

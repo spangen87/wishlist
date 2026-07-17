@@ -114,7 +114,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
           value={productUrl}
           onChange={(e) => setProductUrl(e.target.value)}
           onBlur={(e) => setProductUrl(normalizeUrl(e.target.value))}
-          className="light-input font-mono text-[12px]"
+          className="light-input font-mono"
         />
       </div>
       <div>
