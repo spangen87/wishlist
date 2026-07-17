@@ -63,13 +63,17 @@ export default function WishlistPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (!loading && user && role === 'viewer') {
+    // Only child accounts own a wishlist here. Parents/viewers who land on
+    // this URL must be sent away BEFORE getOrCreateWishlist runs, or a ghost
+    // wishlist doc gets created with the adult's uid as childUid.
+    if (!loading && user && role && role !== 'child') {
       router.push('/dashboard');
     }
   }, [loading, user, role, router]);
 
   useEffect(() => {
     if (loading || !user) return;
+    if (role && role !== 'child') return; // redirecting — never create a list for an adult
     let unsubscribe: (() => void) | null = null;
 
     getOrCreateWishlist(user.uid).then((id) => {
@@ -84,7 +88,7 @@ export default function WishlistPage() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [loading, user]);
+  }, [loading, user, role]);
 
   function handleDragStart(event: { active: { id: string | number } }) {
     const found = items.find((i) => i.id === event.active.id);

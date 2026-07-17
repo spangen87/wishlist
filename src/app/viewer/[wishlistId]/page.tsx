@@ -96,6 +96,13 @@ export default function ViewerWishlistPage({
   useEffect(() => {
     if (loading || !user) return;
 
+    const accessDenied = () => {
+      // Without this, a removed viewer (or a dead link) hangs forever on the
+      // loading skeleton — the items subscription errors and never fires.
+      setError('Du har inte tillgång till den här önskelistan.');
+      setDataLoading(false);
+    };
+
     getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
       if (wishlistDoc.exists()) {
         const wlData = wishlistDoc.data();
@@ -106,15 +113,15 @@ export default function ViewerWishlistPage({
         setOccasion(wlData.occasion ?? null);
         setChildUid(wlData.childUid ?? '');
         fetchChildName(wlData.childUid);
+      } else {
+        accessDenied();
       }
-    }).catch(() => {
-      // silent
-    });
+    }).catch(accessDenied);
 
     const unsubItems = subscribeToItems(wishlistId, (newItems) => {
       setItems(newItems);
       setDataLoading(false);
-    });
+    }, accessDenied);
 
     const unsubStatus = subscribeToPurchaseStatus(wishlistId, (newStatuses) => {
       setStatuses(newStatuses);
@@ -229,13 +236,9 @@ export default function ViewerWishlistPage({
       <LightShell>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
           <p className="text-[14px]" style={{ color: 'var(--color-destructive)' }}>{error}</p>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="light-cta-outline"
-          >
-            Försök igen
-          </button>
+          <Link href="/dashboard" className="light-cta-outline">
+            Till mina listor
+          </Link>
         </div>
       </LightShell>
     );

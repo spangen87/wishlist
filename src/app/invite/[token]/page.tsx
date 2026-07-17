@@ -174,7 +174,15 @@ export default function InvitePage({
 
   async function redeemToken() {
     try {
-      const idToken = await user!.getIdToken();
+      // Read the user from the SDK, not from context: right after the inline
+      // login/registration the AuthProvider state hasn't re-rendered yet, so
+      // the context `user` is still null and redemption would always fail once.
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setPageState('error');
+        return;
+      }
+      const idToken = await currentUser.getIdToken();
       const res = await fetch('/api/invite/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
