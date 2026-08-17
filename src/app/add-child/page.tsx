@@ -34,17 +34,20 @@ export default function AddChildPage() {
         <Link
           href="/dashboard"
           aria-label="Tillbaka till mina listor"
-          className="flex items-center justify-center min-h-[44px] min-w-[44px]"
-          style={{ color: 'var(--color-muted-light)' }}
+          className="flex items-center justify-center min-h-[44px] min-w-[44px] -ml-2"
+          style={{ color: 'var(--color-ink-light)' }}
         >
           <ArrowLeft size={18} />
         </Link>
         <h1 className="font-display font-bold text-[20px]">Lägg till barn</h1>
       </header>
 
-      <div className="flex-1 app-page app-bottom pt-8">
+      <div className="flex-1 app-page app-bottom pt-6">
         <div className="mx-auto w-full max-w-sm">
-          <p className="mb-6 text-[14px]" style={{ color: 'var(--color-muted-light)' }}>
+          <p
+            className="mb-7 rounded-2xl px-4 py-3.5 text-[15px] leading-relaxed"
+            style={{ background: 'var(--color-accent-soft)', color: 'var(--color-ink-light)' }}
+          >
             Skapa eget konto åt ditt barn. Barnet kan logga in själv och hantera sin önskelista.
           </p>
           <ChildAccountForm onSuccess={() => router.push('/dashboard')} />

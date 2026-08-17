@@ -8,6 +8,12 @@ interface ChildAccountFormProps {
 
 const FIELD_ACCENTS = ['#FF7AB8', '#7DE3FF', '#FFD36E', '#85F2CA'] as const;
 const FIELD_LABELS = ['Visningsnamn', 'Användarnamn', 'Lösenord', 'Ålder'] as const;
+const FIELD_HINTS = [
+  'Namnet barnet ser i appen, t.ex. Elsa',
+  'Minst 3 tecken. Används vid inloggning.',
+  'Minst 6 tecken',
+  '1–18 år',
+] as const;
 
 export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
   const [displayName, setDisplayName] = useState('');
@@ -112,37 +118,56 @@ export function ChildAccountForm({ onSuccess }: ChildAccountFormProps) {
       onChange: setAge,
       min: 1,
       max: 18,
+      inputMode: 'numeric' as const,
     },
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {fields.map((f, i) => (
         <div key={f.id}>
           <label
             htmlFor={f.id}
-            className="block mb-1.5 text-[10px] font-bold tracking-caps"
-            style={{ color: FIELD_ACCENTS[i] }}
+            className="flex items-center gap-2 mb-1.5 text-[14px] font-bold"
+            style={{ color: 'var(--color-ink-light)' }}
           >
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: FIELD_ACCENTS[i] }}
+            />
             {FIELD_LABELS[i]}
           </label>
           <input
             id={f.id}
             type={f.type}
             autoComplete={f.autoComplete}
+            inputMode={f.inputMode}
             min={f.min}
             max={f.max}
             required
+            aria-describedby={`${f.id}-hint`}
             value={f.value}
             onChange={(e) => f.onChange(e.target.value)}
             className="light-input"
-            style={{ boxShadow: `inset 0 0 0 1px ${FIELD_ACCENTS[i]}33` }}
+            style={{ boxShadow: `inset 0 0 0 1px ${FIELD_ACCENTS[i]}66` }}
           />
+          <p
+            id={`${f.id}-hint`}
+            className="mt-1.5 text-[13px] leading-snug"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            {FIELD_HINTS[i]}
+          </p>
         </div>
       ))}
 
       {error && (
-        <p role="alert" className="text-sm font-semibold" style={{ color: 'var(--color-destructive)' }}>
+        <p
+          role="alert"
+          className="rounded-xl px-3.5 py-2.5 text-[14px] font-semibold leading-snug"
+          style={{ background: 'var(--color-destructive-soft)', color: 'var(--color-destructive)' }}
+        >
           {error}
         </p>
       )}
