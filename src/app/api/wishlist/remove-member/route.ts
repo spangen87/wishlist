@@ -58,11 +58,15 @@ export async function POST(request: NextRequest) {
   }
 
   await wishlistRef.update({ parentUids: FieldValue.arrayRemove(memberUid) });
-  // Keep the users/{childUid}.parentUids fallback (used by account deletion) in sync
-  await adminDb.collection('users').doc(data.childUid).set(
-    { parentUids: FieldValue.arrayRemove(memberUid) },
-    { merge: true }
-  );
+  // Keep the users/{childUid}.parentUids fallback (used by account deletion) in
+  // sync. An account-free list has no child profile to mirror into, and
+  // doc('') throws — which used to 500 *after* the removal had committed.
+  if (data.childUid) {
+    await adminDb.collection('users').doc(data.childUid).set(
+      { parentUids: FieldValue.arrayRemove(memberUid) },
+      { merge: true }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

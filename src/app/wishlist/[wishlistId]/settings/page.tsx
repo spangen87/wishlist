@@ -7,7 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
 import Link from 'next/link';
 import { LightShell, ArrowLeft, Calendar, UserIcon, Heart } from '@/components/galaxy';
-import { isAccountFreeList } from '@/lib/wishlist-kind';
+import { isAccountFreeList, OCCASION_SUGGESTIONS } from '@/lib/wishlist-kind';
 
 function ResetChildPasswordSection({ childUid }: { childUid: string }) {
   const [open, setOpen] = useState(false);
@@ -335,11 +335,9 @@ function OccasionSection({
             className="light-input"
           />
           <datalist id="occasion-suggestions">
-            <option value="Födelsedag" />
-            <option value="Jul" />
-            <option value="Påsk" />
-            <option value="Studentdag" />
-            <option value="Namnsdagen" />
+            {OCCASION_SUGGESTIONS.map((o) => (
+              <option key={o} value={o} />
+            ))}
           </datalist>
         </div>
         <div>
@@ -789,7 +787,7 @@ export default function WishlistSettingsPage({
           initialOccasion={initialOccasion}
           locked={accessType === 'child' && parents.length > 0 && initialOccasion !== null}
         />
-        <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
+        <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} accountFree={accountFree} />
         {accountFree && (
           <SurpriseModeSection
             wishlistId={wishlistId}

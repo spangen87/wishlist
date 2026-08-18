@@ -116,6 +116,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, wishlistId, alreadyViewer: true });
   }
 
+  // A parent opening their own guest link must stay a parent. Viewers see
+  // purchases unconditionally, so adding them here would quietly switch off
+  // surprise mode for the very person it protects. They already have access.
+  const existingParentUids: string[] = wishlistSnap.data()!.parentUids ?? [];
+  if (existingParentUids.includes(uid)) {
+    return NextResponse.json({ ok: true, wishlistId, alreadyMember: true });
+  }
+
   await adminDb.collection('wishlists').doc(wishlistId).update({
     viewerUids: FieldValue.arrayUnion(uid),
   });

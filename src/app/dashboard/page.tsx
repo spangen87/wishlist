@@ -28,7 +28,9 @@ export default function DashboardPage() {
   const [parentDataLoading, setParentDataLoading] = useState(true);
   const [viewerDataLoading, setViewerDataLoading] = useState(true);
   const fetchedNamesRef = useRef(new Set<string>());
-  const statsUnsubsRef = useRef(new Map<string, () => void>());
+  const statsUnsubsRef = useRef(
+    new Map<string, { canSeePurchases: boolean; unsub: () => void }>()
+  );
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -78,9 +80,23 @@ export default function DashboardPage() {
     if (loading || !user) return;
 
     function subscribeToStatsTracked(wishlistId: string, canSeePurchases: boolean) {
-      if (statsUnsubsRef.current.has(wishlistId)) return;
+      const existing = statsUnsubsRef.current.get(wishlistId);
+      if (existing) {
+        // Surprise mode can be toggled from another tab. Keeping the original
+        // subscription would leave the card stuck at "0 köpta" after turning it
+        // off, or hold a now-denied listener open after turning it on.
+        if (existing.canSeePurchases === canSeePurchases) return;
+        existing.unsub();
+        if (!canSeePurchases) {
+          setStats((prev) => {
+            const stats = prev.get(wishlistId);
+            if (!stats) return prev;
+            return new Map(prev).set(wishlistId, { ...stats, purchasedCount: 0 });
+          });
+        }
+      }
       const unsub = subscribeToStats(wishlistId, canSeePurchases);
-      statsUnsubsRef.current.set(wishlistId, unsub);
+      statsUnsubsRef.current.set(wishlistId, { canSeePurchases, unsub });
     }
 
     const unsubParent = subscribeToParentWishlists(
@@ -113,7 +129,7 @@ export default function DashboardPage() {
     return () => {
       unsubParent();
       unsubViewer();
-      statsUnsubsRef.current.forEach((unsub) => unsub());
+      statsUnsubsRef.current.forEach(({ unsub }) => unsub());
       statsUnsubsRef.current.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

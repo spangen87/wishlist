@@ -495,4 +495,33 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
       getDoc(doc(strangerCtx.firestore(), 'wishlists', HIDDEN_LIST_ID))
     );
   });
+  it('DENY: child cannot set hidePurchases and lock their parents out', async () => {
+    // The whole surprise-mode boundary rests on this field, and only the
+    // Admin SDK route may set it. A child who could would deny their own
+    // parents purchaseStatus and activityLog with no way back.
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'wishlists', WISHLIST_ID),
+        { parentUids: [PARENT_UID] },
+        { merge: true }
+      );
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    await assertFails(
+      setDoc(
+        doc(childCtx.firestore(), 'wishlists', WISHLIST_ID),
+        { hidePurchases: true },
+        { merge: true }
+      )
+    );
+  });
+
+  it('DENY: child cannot rewrite the membership arrays', async () => {
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const ref = doc(childCtx.firestore(), 'wishlists', WISHLIST_ID);
+    await assertFails(setDoc(ref, { parentUids: [] }, { merge: true }));
+    await assertFails(setDoc(ref, { viewerUids: [CHILD_UID] }, { merge: true }));
+    await assertFails(setDoc(ref, { childUid: 'someone-else' }, { merge: true }));
+    await assertFails(setDoc(ref, { ownerUid: CHILD_UID }, { merge: true }));
+  });
 });

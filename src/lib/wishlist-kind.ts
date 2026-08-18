@@ -25,3 +25,20 @@ export function wishlistDisplayName(
   if (isAccountFreeList(wishlist)) return wishlist.title?.trim() || 'Önskelista';
   return childName?.trim() || wishlist.title?.trim() || 'Önskelista';
 }
+
+/**
+ * Suggestions for the "Tillfälle" field, offered both when a list is created
+ * and when it is edited later. Kept in one place so a wedding list created on
+ * /add-list still finds "Bröllop" in the settings dropdown.
+ */
+export const OCCASION_SUGGESTIONS = [
+  'Födelsedag',
+  'Jul',
+  'Dop',
+  'Bröllop',
+  'Namngivningsfest',
+  'Inflyttningsfest',
+  'Påsk',
+  'Studenten',
+  'Namnsdagen',
+] as const;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { LightShell, ArrowLeft } from '@/components/galaxy';
+import { OCCASION_SUGGESTIONS } from '@/lib/wishlist-kind';
 
 export default function AddListPage() {
   const router = useRouter();
@@ -164,13 +165,9 @@ export default function AddListPage() {
                 style={{ boxShadow: 'inset 0 0 0 1px #7DE3FF66' }}
               />
               <datalist id="add-list-occasions">
-                <option value="Födelsedag" />
-                <option value="Dop" />
-                <option value="Bröllop" />
-                <option value="Namngivningsfest" />
-                <option value="Inflyttningsfest" />
-                <option value="Jul" />
-                <option value="Studenten" />
+                {OCCASION_SUGGESTIONS.map((o) => (
+                  <option key={o} value={o} />
+                ))}
               </datalist>
             </div>
 
