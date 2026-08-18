@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
 
-  // Block self-invite: child cannot join their own wishlist
-  const childUid: string = wishlistSnap.data()!.childUid;
-  if (childUid === uid) {
+  // Block self-invite: child cannot join their own wishlist.
+  // Account-free lists store childUid as '' — there is no self to block there.
+  const childUid: string = wishlistSnap.data()!.childUid ?? '';
+  if (childUid && childUid === uid) {
     return NextResponse.json({ error: 'Du kan inte gå med i din egen önskelista' }, { status: 409 });
   }
 
@@ -88,11 +89,14 @@ export async function POST(request: NextRequest) {
     await inviteRef.update({ active: false });
 
     // Keep users/{childUid}.parentUids in sync — the account-delete route falls
-    // back to it when the wishlist doc is already gone.
-    await adminDb.collection('users').doc(childUid).set(
-      { parentUids: FieldValue.arrayUnion(uid) },
-      { merge: true }
-    );
+    // back to it when the wishlist doc is already gone. Account-free lists have
+    // no child profile to mirror into.
+    if (childUid) {
+      await adminDb.collection('users').doc(childUid).set(
+        { parentUids: FieldValue.arrayUnion(uid) },
+        { merge: true }
+      );
+    }
 
     // Upgrade claim to parent (viewer → parent is the intended upgrade, D-12)
     if (callerRole !== 'parent') {

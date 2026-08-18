@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { ChildAccountForm } from '@/components/onboarding/ChildAccountForm';
@@ -255,9 +256,23 @@ export default function OnboardingPage() {
       <div className="flex-1 app-page app-bottom pt-6">
         <div className="mx-auto w-full max-w-sm">
           {state.step === 1 && (
-            <ChildAccountForm
-              onSuccess={(uid) => setState({ step: 2, wishlistId: uid })}
-            />
+            <>
+              <ChildAccountForm
+                onSuccess={(uid) => setState({ step: 2, wishlistId: uid })}
+              />
+              {/* Not everyone starts with a child account — a list for a toddler,
+                  a christening or a wedding needs no login at all. Without this
+                  the wizard is a dead end for them. */}
+              <p
+                className="mt-6 text-center text-[13px] leading-snug"
+                style={{ color: 'var(--color-muted-light)' }}
+              >
+                Vill du bara göra en önskelista, utan konto åt barnet?{' '}
+                <Link href="/add-list" className="font-bold" style={{ color: 'var(--color-accent)' }}>
+                  Skapa en lista utan konto →
+                </Link>
+              </p>
+            </>
           )}
           {state.step === 2 && state.wishlistId && (
             <Step2

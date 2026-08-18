@@ -4,7 +4,7 @@ import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistDashboardCardProps {
   wishlist: WishlistDoc;
-  childName: string;
+  name: string;
   itemCount: number;
   purchasedCount: number;
 }
@@ -19,13 +19,13 @@ function pickColor(seed: string) {
 
 export function WishlistDashboardCard({
   wishlist,
-  childName,
+  name,
   itemCount,
   purchasedCount,
 }: WishlistDashboardCardProps) {
   const occasion = wishlist.occasion;
-  const initial = (childName || '?').slice(0, 1).toUpperCase();
-  const accent = pickColor(wishlist.id || childName);
+  const initial = (name || '?').slice(0, 1).toUpperCase();
+  const accent = pickColor(wishlist.id || name);
   const progress = itemCount > 0 ? Math.round((purchasedCount / itemCount) * 100) : 0;
 
   return (
@@ -50,7 +50,7 @@ export function WishlistDashboardCard({
       </div>
       <div className="min-w-0 flex-1">
         <h2 className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--color-ink-light)' }}>
-          {childName}
+          {name}
         </h2>
         {occasion && (
           <p className="text-[12px] truncate" style={{ color: accent }}>

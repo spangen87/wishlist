@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
 import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
-import { Check } from '@/components/galaxy';
+import { Check, Pencil, Trash } from '@/components/galaxy';
 import { isSafeUrl } from '@/lib/url';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 
@@ -12,6 +12,15 @@ interface ViewerWishItemCardProps {
   wishlistId: string;
   status: PurchaseStatusDoc | undefined;
   currentUid: string;
+  /**
+   * Surprise mode — this reader may not see who bought or reserved what, so the
+   * whole coordination half of the card (checkbox, reservation, viewer notes)
+   * is left out rather than rendered empty.
+   */
+  hidePurchaseInfo?: boolean;
+  /** Provided when the reader may manage the list's wishes (account-free lists). */
+  onEdit?: () => void;
+  onDelete?: () => void;
   onTogglePurchased: (itemId: string, itemTitle: string, purchased: boolean) => Promise<void>;
   onUpdateNote: (itemId: string, itemTitle: string, note: string) => Promise<void>;
   onToggleReserved: (itemId: string, itemTitle: string, reserve: boolean) => Promise<void>;
@@ -24,6 +33,9 @@ export function ViewerWishItemCard({
   item,
   status,
   currentUid,
+  hidePurchaseInfo = false,
+  onEdit,
+  onDelete,
   onTogglePurchased,
   onUpdateNote,
   onToggleReserved,
@@ -37,11 +49,11 @@ export function ViewerWishItemCard({
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
 
-  const isPurchased = !!status?.purchasedBy;
+  const isPurchased = !hidePurchaseInfo && !!status?.purchasedBy;
   const isOwnPurchase = status?.purchasedBy === currentUid;
   const isOthersPurchase = isPurchased && !isOwnPurchase;
 
-  const isReserved = !!status?.reservedBy;
+  const isReserved = !hidePurchaseInfo && !!status?.reservedBy;
   const isOwnReservation = status?.reservedBy === currentUid;
   const isOtherReservation = isReserved && !isOwnReservation;
 
@@ -121,6 +133,7 @@ export function ViewerWishItemCard({
           </h2>
 
           {/* Checkbox toggle */}
+          {!hidePurchaseInfo && (
           <button
             type="button"
             onClick={handleToggle}
@@ -141,6 +154,7 @@ export function ViewerWishItemCard({
           >
             {isPurchased && <Check size={14} color="#fff" />}
           </button>
+          )}
         </div>
 
         <div className="mt-1 flex items-center gap-2 flex-wrap text-[12px]">
@@ -159,6 +173,15 @@ export function ViewerWishItemCard({
           )}
         </div>
 
+        {item.note && (
+          <p
+            className="mt-1 text-[12px] italic leading-snug"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            {item.note}
+          </p>
+        )}
+
         {item.productUrl && isSafeUrl(item.productUrl) && (
           <a
             href={item.productUrl}
@@ -171,7 +194,35 @@ export function ViewerWishItemCard({
           </a>
         )}
 
+        {/* Manage — only on lists the reader is responsible for */}
+        {(onEdit || onDelete) && (
+          <div className="mt-2.5 flex items-center gap-4">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="flex items-center gap-1.5 text-[12px] font-bold min-h-[36px]"
+                style={{ color: 'var(--color-muted-light)' }}
+              >
+                <Pencil size={12} color="var(--color-muted-light)" /> Ändra
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label={`Ta bort ${item.title}`}
+                className="flex items-center gap-1.5 text-[12px] font-bold min-h-[36px]"
+                style={{ color: 'var(--color-destructive)' }}
+              >
+                <Trash size={12} color="var(--color-destructive)" /> Ta bort
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Reserve / actions */}
+        {!hidePurchaseInfo && (
         <div className="mt-3 flex flex-col gap-2">
           {!isPurchased && (
             <button
@@ -224,6 +275,7 @@ export function ViewerWishItemCard({
             <OtherViewerNotes notes={otherViewerNotes} />
           </div>
         </div>
+        )}
       </div>
     </li>
   );

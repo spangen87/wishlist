@@ -25,6 +25,21 @@ service cloud.firestore {
              request.auth.uid in get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.parentUids;
     }
 
+    // Surprise mode (account-free lists): the people who manage the list are
+    // also the ones being given the gifts, so they must not see who bought or
+    // reserved what. Invited viewers still see everything, which is what keeps
+    // them from double-buying. Toggled via /api/wishlist/update-privacy.
+    function hidesPurchasesFromParents(wishlistId) {
+      return get(/databases/$(database)/documents/wishlists/$(wishlistId)).data.get('hidePurchases', false) == true;
+    }
+
+    // Who may see the purchase side of a list: always the invited viewers, and
+    // the parents unless the list is in surprise mode.
+    function canSeePurchases(wishlistId) {
+      return isViewer(wishlistId) ||
+             (isParent(wishlistId) && !hidesPurchasesFromParents(wishlistId));
+    }
+
     // Root wishlist document — child (owner) can read/write their own
     // request.auth.uid == wishlistId covers first-login reads where the doc doesn't exist yet
     // (wishlist ID is deterministically the child's UID, so this is safe)
@@ -79,8 +94,8 @@ service cloud.firestore {
       // This is the irreversible privacy boundary. Child UID is NOT in viewerUids or parentUids.
       // Do NOT add any rule that allows childUid to read this subcollection.
       match /purchaseStatus/{itemId} {
-        allow read: if isViewer(wishlistId) || isParent(wishlistId);
-        allow write: if (isViewer(wishlistId) || isParent(wishlistId))
+        allow read: if canSeePurchases(wishlistId);
+        allow write: if canSeePurchases(wishlistId)
           && (request.resource.data.purchasedBy == request.auth.uid
               || request.resource.data.purchasedBy == null)
           && (
@@ -93,7 +108,7 @@ service cloud.firestore {
       // Activity log subcollection — viewers AND parents can read, written via Admin SDK only (D-18)
       // Child CANNOT read. Client writes are forbidden (Admin SDK bypasses rules).
       match /activityLog/{entryId} {
-        allow read: if isViewer(wishlistId) || isParent(wishlistId);
+        allow read: if canSeePurchases(wishlistId);
         allow write: if false;
       }
     }

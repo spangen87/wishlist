@@ -42,7 +42,10 @@ async function syncParentUids(): Promise<number> {
   const syncBatch = adminDb.batch();
   for (const wDoc of wishlistsSnap.docs) {
     const parentUids: string[] = wDoc.data().parentUids ?? [];
-    if (parentUids.length > 0) {
+    // Only child lists are keyed by a user UID. A list with no account behind
+    // it has a generated ID, so mirroring it into users/ would invent a user.
+    const isAccountFreeList = !wDoc.data().childUid;
+    if (parentUids.length > 0 && !isAccountFreeList) {
       syncBatch.set(
         adminDb.collection('users').doc(wDoc.id),
         { parentUids },
@@ -153,11 +156,39 @@ async function purgeOrphans(): Promise<void> {
     }
   }
 
+  // Phase C: lists with no account and no parents left are unreachable —
+  // nobody can open them, but their share links would still resolve.
+  console.log('\nPhase C: purging lists that lost their last parent...\n');
+  let listsPurged = 0;
+  const allWishlists = await adminDb.collection('wishlists').get();
+  for (const wDoc of allWishlists.docs) {
+    const data = wDoc.data();
+    if (data.childUid) continue;               // child lists are handled above
+    if ((data.parentUids ?? []).length > 0) continue;
+    try {
+      await adminDb.recursiveDelete(wDoc.ref);
+      const inviteSnap = await adminDb.collection('invites')
+        .where('wishlistId', '==', wDoc.id).get();
+      if (!inviteSnap.empty) {
+        const inviteBatch = adminDb.batch();
+        inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
+        await inviteBatch.commit();
+      }
+      listsPurged++;
+      console.log(`  ✓ deleted parentless list ${wDoc.id} (recursive)`);
+    } catch (err) {
+      console.error(`  ERROR deleting list ${wDoc.id}:`, err);
+      errors++;
+    }
+  }
+  console.log(`  ✓ purged ${listsPurged} parentless list(s)\n`);
+
   console.log('\n── Summary ──────────────────────────────────');
   console.log(`parentUids synced (Phase A)   : ${syncCount}`);
   console.log(`Total Firestore users scanned : ${usersSnap.size}`);
   console.log(`Orphans found                 : ${orphansFound}`);
   console.log(`Orphans cleaned               : ${orphansDeleted}`);
+  console.log(`Parentless lists purged       : ${listsPurged}`);
   console.log(`Errors                        : ${errors}`);
   if (errors > 0) {
     console.log('\nSome orphans could not be cleaned — review errors above.');

@@ -134,7 +134,12 @@ export default function InvitePage({
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [invite, setInvite] = useState<{ type: 'parent' | 'viewer'; childName: string } | null>(null);
+  const [invite, setInvite] = useState<{
+    type: 'parent' | 'viewer';
+    childName: string;
+    /** Set instead of childName when the list has no child account behind it. */
+    listName: string;
+  } | null>(null);
   const initialAuthCheckedRef = useRef(false);
 
   useEffect(() => {
@@ -156,6 +161,7 @@ export default function InvitePage({
           setInvite({
             type: info.type === 'parent' ? 'parent' : 'viewer',
             childName: info.childName ?? '',
+            listName: info.listName ?? '',
           });
         }
       } catch {
@@ -174,7 +180,16 @@ export default function InvitePage({
 
   async function redeemToken() {
     try {
-      const idToken = await user!.getIdToken();
+      // Right after registering, the AuthProvider context can still be null —
+      // onAuthStateChanged has not fired yet — so read the signed-in user from
+      // the SDK directly and fall back to context only for the already-logged-in
+      // path. Trusting the context alone lost this race and failed the redeem.
+      const currentUser = auth.currentUser ?? user;
+      if (!currentUser) {
+        setPageState('error');
+        return;
+      }
+      const idToken = await currentUser.getIdToken();
       const res = await fetch('/api/invite/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -284,7 +299,12 @@ export default function InvitePage({
           {invite?.type === 'parent' ? (
             <>
               Du har bjudits in
-              <br />som förälder
+              <br />som {invite.listName ? 'medhanterare' : 'förälder'}
+            </>
+          ) : invite?.listName ? (
+            <>
+              Du har bjudits in
+              <br />till {invite.listName}
             </>
           ) : (
             <>
@@ -296,8 +316,12 @@ export default function InvitePage({
         <p className="mt-3 text-[13px] text-center max-w-xs" style={{ color: 'var(--color-muted)' }}>
           {invite?.type === 'parent'
             ? `Logga in eller skapa ett konto för att hjälpa till att hantera ${
-                invite.childName ? `${invite.childName}s` : 'barnets'
-              } önskelista.`
+                invite.listName
+                  ? invite.listName
+                  : invite.childName
+                  ? `${invite.childName}s önskelista`
+                  : 'barnets önskelista'
+              }.`
             : 'Logga in eller skapa ett konto för att se listan och koordinera inköp utan att förstöra överraskningen.'}
         </p>
 

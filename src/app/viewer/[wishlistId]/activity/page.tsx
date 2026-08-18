@@ -49,15 +49,38 @@ export default function ActivityLogPage({
   useEffect(() => {
     if (loading || !user) return;
 
-    const unsub = subscribeToActivityLog(wishlistId, (newEntries, newLastDoc) => {
-      setEntries(newEntries);
-      setLastDoc(newLastDoc);
-      setHasMore(newEntries.length === 50);
-      setDataLoading(false);
-      newEntries.forEach((e) => fetchDisplayName(e.viewerUid));
+    // A list in surprise mode denies its own parents the activity log, so check
+    // access before subscribing — otherwise the page waits on a rules error.
+    let cancelled = false;
+    let unsub: (() => void) | null = null;
+
+    getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
+      if (cancelled) return;
+      const data = wishlistDoc.data();
+      const viewerUids: string[] = data?.viewerUids ?? [];
+      const parentUids: string[] = data?.parentUids ?? [];
+      const maySee =
+        viewerUids.includes(user.uid) ||
+        (parentUids.includes(user.uid) && data?.hidePurchases !== true);
+      if (!maySee) {
+        router.push(`/viewer/${wishlistId}`);
+        return;
+      }
+      unsub = subscribeToActivityLog(wishlistId, (newEntries, newLastDoc) => {
+        setEntries(newEntries);
+        setLastDoc(newLastDoc);
+        setHasMore(newEntries.length === 50);
+        setDataLoading(false);
+        newEntries.forEach((e) => fetchDisplayName(e.viewerUid));
+      });
+    }).catch(() => {
+      if (!cancelled) router.push(`/viewer/${wishlistId}`);
     });
 
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, wishlistId]);
 

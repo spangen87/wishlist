@@ -371,4 +371,128 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
       })
     );
   });
+  // === Surprise mode — account-free lists hide purchases from their own parents ===
+  // A list made for one's own wedding is managed by the same people receiving the
+  // gifts, so hidePurchases keeps them out of purchaseStatus and activityLog while
+  // the invited guests still coordinate freely.
+
+  const HIDDEN_LIST_ID = 'list-hidden-1';
+
+  async function seedAccountFreeList(hidePurchases: boolean) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'wishlists', HIDDEN_LIST_ID), {
+        childUid: '',
+        ownerUid: PARENT_UID,
+        viewerUids: [VIEWER_UID],
+        parentUids: [PARENT_UID],
+        title: 'Vårt bröllop',
+        hidePurchases,
+        createdAt: new Date(),
+      });
+      await setDoc(doc(db, 'wishlists', HIDDEN_LIST_ID, 'items', ITEM_ID), {
+        id: ITEM_ID,
+        title: 'Handduk',
+        position: '0',
+        createdAt: new Date(),
+      });
+      await setDoc(doc(db, 'wishlists', HIDDEN_LIST_ID, 'purchaseStatus', ITEM_ID), {
+        itemId: ITEM_ID,
+        viewerUids: [VIEWER_UID],
+        purchasedBy: VIEWER_UID,
+      });
+      await setDoc(doc(db, 'wishlists', HIDDEN_LIST_ID, 'activityLog', ACTIVITY_LOG_ID), {
+        id: ACTIVITY_LOG_ID,
+        viewerUid: VIEWER_UID,
+        action: 'marked_purchased',
+        itemId: ITEM_ID,
+        timestamp: new Date(),
+      });
+    });
+  }
+
+  it('DENY: parent cannot read purchaseStatus when the list hides purchases', async () => {
+    await seedAccountFreeList(true);
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    await assertFails(
+      getDoc(doc(parentCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'purchaseStatus', ITEM_ID))
+    );
+  });
+
+  it('DENY: parent cannot write purchaseStatus when the list hides purchases', async () => {
+    await seedAccountFreeList(true);
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    await assertFails(
+      setDoc(doc(parentCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'purchaseStatus', ITEM_ID), {
+        itemId: ITEM_ID,
+        viewerUids: [VIEWER_UID],
+        purchasedBy: PARENT_UID,
+      })
+    );
+  });
+
+  it('DENY: parent cannot read activityLog when the list hides purchases', async () => {
+    await seedAccountFreeList(true);
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    await assertFails(
+      getDoc(doc(parentCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'activityLog', ACTIVITY_LOG_ID))
+    );
+  });
+
+  it('ALLOW: viewer still reads purchaseStatus on a list that hides purchases', async () => {
+    await seedAccountFreeList(true);
+    const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
+    await assertSucceeds(
+      getDoc(doc(viewerCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'purchaseStatus', ITEM_ID))
+    );
+  });
+
+  it('ALLOW: viewer still reads activityLog on a list that hides purchases', async () => {
+    await seedAccountFreeList(true);
+    const viewerCtx = testEnv.authenticatedContext(VIEWER_UID);
+    await assertSucceeds(
+      getDoc(doc(viewerCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'activityLog', ACTIVITY_LOG_ID))
+    );
+  });
+
+  it('ALLOW: parent reads purchaseStatus when the list does not hide purchases', async () => {
+    await seedAccountFreeList(false);
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    await assertSucceeds(
+      getDoc(doc(parentCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'purchaseStatus', ITEM_ID))
+    );
+  });
+
+  it('ALLOW: parent reads purchaseStatus on a child list, which has no hidePurchases field', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'wishlists', WISHLIST_ID), {
+        childUid: CHILD_UID,
+        viewerUids: [VIEWER_UID],
+        parentUids: [PARENT_UID],
+        createdAt: new Date(),
+      });
+    });
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    await assertSucceeds(
+      getDoc(doc(parentCtx.firestore(), 'wishlists', WISHLIST_ID, 'purchaseStatus', ITEM_ID))
+    );
+  });
+
+  it('ALLOW: parent manages items on an account-free list even in surprise mode', async () => {
+    // Surprise mode hides who bought what — it must not stop the owner from
+    // maintaining the wishes themselves, which nobody else can do here.
+    await seedAccountFreeList(true);
+    const parentCtx = testEnv.authenticatedContext(PARENT_UID);
+    const itemRef = doc(parentCtx.firestore(), 'wishlists', HIDDEN_LIST_ID, 'items', ITEM_ID);
+    await assertSucceeds(getDoc(itemRef));
+    await assertSucceeds(setDoc(itemRef, { title: 'Ny handduk', position: '0' }, { merge: true }));
+  });
+
+  it('DENY: a stranger cannot read an account-free list', async () => {
+    await seedAccountFreeList(false);
+    const strangerCtx = testEnv.authenticatedContext('stranger-uid');
+    await assertFails(
+      getDoc(doc(strangerCtx.firestore(), 'wishlists', HIDDEN_LIST_ID))
+    );
+  });
 });

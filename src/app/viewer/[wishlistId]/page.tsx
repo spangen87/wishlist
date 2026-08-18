@@ -8,6 +8,8 @@ import { subscribeToItems } from '@/lib/firebase/wishlist';
 import { subscribeToPurchaseStatus, subscribeToParentWishlists } from '@/lib/firebase/viewer';
 import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
 import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
+import { deleteWishItem } from '@/lib/firebase/wishlist';
+import { isAccountFreeList, wishlistDisplayName } from '@/lib/wishlist-kind';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -31,6 +33,11 @@ export default function ViewerWishlistPage({
   const [wishlistTitle, setWishlistTitle] = useState<string>('');
   const [childUid, setChildUid] = useState<string>('');
   const [isParent, setIsParent] = useState(false);
+  // Surprise mode: an account-free list can hide its purchases from its own
+  // parents. Viewers always see them.
+  const [canSeePurchases, setCanSeePurchases] = useState(true);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [siblingLists, setSiblingLists] = useState<WishlistDoc[]>([]);
   const [childNames, setChildNames] = useState<Map<string, string>>(new Map());
   const [occasion, setOccasion] = useState<{ name: string; date: string } | null>(null);
@@ -54,6 +61,9 @@ export default function ViewerWishlistPage({
     setIsRenaming(false);
     setRenameError(null);
     setAddItemError(null);
+    setEditingItemId(null);
+    setItemActionError(null);
+    setCanSeePurchases(true);
   }
 
   useEffect(() => {
@@ -96,17 +106,39 @@ export default function ViewerWishlistPage({
   useEffect(() => {
     if (loading || !user) return;
 
+    // The purchaseStatus subscription can only be opened once the wishlist doc
+    // tells us whether we may read it, so it is set up inside the promise —
+    // `cancelled` keeps a late resolve from leaking a listener after unmount.
+    let cancelled = false;
+    let unsubStatus: (() => void) | null = null;
+
     getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
-      if (wishlistDoc.exists()) {
-        const wlData = wishlistDoc.data();
-        setWishlistTitle(wlData.title ?? '');
-        setRenameValue(wlData.title ?? '');
-        const parentUids: string[] = wlData.parentUids ?? [];
-        setIsParent(parentUids.includes(user.uid));
-        setOccasion(wlData.occasion ?? null);
-        setChildUid(wlData.childUid ?? '');
-        fetchChildName(wlData.childUid);
-      }
+      if (cancelled || !wishlistDoc.exists()) return;
+      const wlData = wishlistDoc.data();
+      setWishlistTitle(wlData.title ?? '');
+      setRenameValue(wlData.title ?? '');
+      const parentUids: string[] = wlData.parentUids ?? [];
+      const viewerUids: string[] = wlData.viewerUids ?? [];
+      const callerIsParent = parentUids.includes(user.uid);
+      setIsParent(callerIsParent);
+      setOccasion(wlData.occasion ?? null);
+      setChildUid(wlData.childUid ?? '');
+      if (wlData.childUid) fetchChildName(wlData.childUid);
+
+      const maySeePurchases =
+        viewerUids.includes(user.uid) || (callerIsParent && wlData.hidePurchases !== true);
+      setCanSeePurchases(maySeePurchases);
+
+      // Subscribing to purchaseStatus we are not allowed to read would only
+      // raise a rules error, so the surprise-mode branch simply never asks.
+      if (!maySeePurchases) return;
+      unsubStatus = subscribeToPurchaseStatus(wishlistId, (newStatuses) => {
+        setStatuses(newStatuses);
+        Object.values(newStatuses).forEach((s) => {
+          if (s.purchasedBy) fetchDisplayName(s.purchasedBy);
+          if (s.reservedBy) fetchDisplayName(s.reservedBy);
+        });
+      });
     }).catch(() => {
       // silent
     });
@@ -116,17 +148,10 @@ export default function ViewerWishlistPage({
       setDataLoading(false);
     });
 
-    const unsubStatus = subscribeToPurchaseStatus(wishlistId, (newStatuses) => {
-      setStatuses(newStatuses);
-      Object.values(newStatuses).forEach((s) => {
-        if (s.purchasedBy) fetchDisplayName(s.purchasedBy);
-        if (s.reservedBy) fetchDisplayName(s.reservedBy);
-      });
-    });
-
     return () => {
+      cancelled = true;
       unsubItems();
-      unsubStatus();
+      unsubStatus?.();
     };
   }, [loading, user, wishlistId, fetchDisplayName, fetchChildName]);
 
@@ -136,7 +161,7 @@ export default function ViewerWishlistPage({
     if (loading || !user) return;
     const unsub = subscribeToParentWishlists(user.uid, (lists) => {
       setSiblingLists(lists);
-      lists.forEach((wl) => fetchChildName(wl.childUid));
+      lists.forEach((wl) => { if (wl.childUid) fetchChildName(wl.childUid); });
     });
     return unsub;
   }, [loading, user, fetchChildName]);
@@ -195,6 +220,16 @@ export default function ViewerWishlistPage({
     }
   }
 
+  async function handleDeleteItem(itemId: string, itemTitle: string) {
+    if (!window.confirm(`Ta bort "${itemTitle}" från listan?`)) return;
+    setItemActionError(null);
+    try {
+      await deleteWishItem(wishlistId, itemId);
+    } catch {
+      setItemActionError('Kunde inte ta bort önskemålet. Försök igen.');
+    }
+  }
+
   async function handleRename() {
     setIsRenaming(false);
     const trimmed = renameValue.trim();
@@ -248,15 +283,33 @@ export default function ViewerWishlistPage({
   const favoriteItems = items.filter((i) => i.isFavorite);
   const otherItems = items.filter((i) => !i.isFavorite);
 
+  const accountFree = isAccountFreeList({ childUid });
   const childName = childUid ? childNames.get(childUid) ?? '' : '';
   const fallbackTitle = childName ? `${childName}s önskelista` : 'Önskelista';
+  // Nobody else can edit an account-free list's wishes — there is no child
+  // login behind it — so its parents get the edit and delete controls.
+  const canManageItems = isParent && accountFree;
   const showSwitcher = isParent && siblingLists.length > 1;
+  const switcherName = (wl: WishlistDoc) =>
+    wishlistDisplayName(wl, childNames.get(wl.childUid));
   const switcherLists = [...siblingLists].sort((a, b) =>
-    (childNames.get(a.childUid) ?? '').localeCompare(childNames.get(b.childUid) ?? '', 'sv')
+    switcherName(a).localeCompare(switcherName(b), 'sv')
   );
 
   function renderCard(item: WishItemDoc) {
     const statusDoc = statuses[item.id];
+    if (editingItemId === item.id) {
+      return (
+        <li key={item.id}>
+          <ParentAddItemForm
+            wishlistId={wishlistId}
+            item={item}
+            onClose={() => setEditingItemId(null)}
+            onError={(msg) => setItemActionError(msg)}
+          />
+        </li>
+      );
+    }
     return (
       <ViewerWishItemCard
         key={item.id}
@@ -264,6 +317,9 @@ export default function ViewerWishlistPage({
         wishlistId={wishlistId}
         status={statusDoc}
         currentUid={user!.uid}
+        hidePurchaseInfo={!canSeePurchases}
+        onEdit={canManageItems ? () => setEditingItemId(item.id) : undefined}
+        onDelete={canManageItems ? () => handleDeleteItem(item.id, item.title) : undefined}
         onTogglePurchased={handleTogglePurchased}
         onUpdateNote={handleUpdateNote}
         onToggleReserved={handleToggleReserved}
@@ -307,19 +363,21 @@ export default function ViewerWishlistPage({
         >
           <ArrowLeft size={16} /> Mina listor
         </Link>
-        <Link
-          href={`/viewer/${wishlistId}/activity`}
-          className="text-[13px] font-semibold"
-          style={{ color: 'var(--color-accent)' }}
-        >
-          Aktivitet →
-        </Link>
+        {canSeePurchases && (
+          <Link
+            href={`/viewer/${wishlistId}/activity`}
+            className="text-[13px] font-semibold"
+            style={{ color: 'var(--color-accent)' }}
+          >
+            Aktivitet →
+          </Link>
+        )}
       </header>
 
       {/* Child switcher — jump straight between siblings' lists */}
       {showSwitcher && (
         <nav
-          aria-label="Byt barn"
+          aria-label="Byt önskelista"
           className="app-page pb-3 flex gap-2 overflow-x-auto"
           style={{ background: '#fff' }}
         >
@@ -341,7 +399,7 @@ export default function ViewerWishlistPage({
                       }
                 }
               >
-                {childNames.get(wl.childUid) ?? '…'}
+                {switcherName(wl)}
               </Link>
             );
           })}
@@ -395,21 +453,27 @@ export default function ViewerWishlistPage({
           </p>
         )}
 
-        <div className="flex items-center gap-3 mt-3">
-          <span className="text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
-            {purchased} av {total} köpta
-          </span>
-          <div
-            className="flex-1 h-1 rounded-full overflow-hidden"
-            style={{ background: 'var(--color-border-light)' }}
-            aria-hidden="true"
-          >
+        {canSeePurchases ? (
+          <div className="flex items-center gap-3 mt-3">
+            <span className="text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
+              {purchased} av {total} köpta
+            </span>
             <div
-              className="h-full"
-              style={{ width: `${progress}%`, background: 'var(--color-accent)', transition: 'width 220ms ease' }}
-            />
+              className="flex-1 h-1 rounded-full overflow-hidden"
+              style={{ background: 'var(--color-border-light)' }}
+              aria-hidden="true"
+            >
+              <div
+                className="h-full"
+                style={{ width: `${progress}%`, background: 'var(--color-accent)', transition: 'width 220ms ease' }}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="mt-3 text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
+            {total} {total === 1 ? 'önskemål' : 'önskemål'} · köpen är dolda för dig
+          </p>
+        )}
 
         {occasion && (() => {
           const today = new Date();
@@ -446,7 +510,10 @@ export default function ViewerWishlistPage({
           <div className="mt-4 flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => setShowAddItem((v) => !v)}
+              onClick={() => {
+                setEditingItemId(null);
+                setShowAddItem((v) => !v);
+              }}
               className="light-cta-outline flex items-center gap-1.5"
             >
               <Plus size={12} /> {showAddItem ? 'Avbryt' : 'Lägg till önskemål'}
@@ -476,6 +543,12 @@ export default function ViewerWishlistPage({
               </p>
             )}
           </div>
+        )}
+
+        {itemActionError && (
+          <p role="alert" className="mb-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
+            {itemActionError}
+          </p>
         )}
 
         {items.length === 0 ? (

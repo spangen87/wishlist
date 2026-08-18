@@ -6,7 +6,8 @@ import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { ShareLinkPanel } from '@/components/viewer/ShareLinkPanel';
 import Link from 'next/link';
-import { LightShell, ArrowLeft, Calendar, UserIcon } from '@/components/galaxy';
+import { LightShell, ArrowLeft, Calendar, UserIcon, Heart } from '@/components/galaxy';
+import { isAccountFreeList } from '@/lib/wishlist-kind';
 
 function ResetChildPasswordSection({ childUid }: { childUid: string }) {
   const [open, setOpen] = useState(false);
@@ -146,6 +147,78 @@ function ResetChildPasswordSection({ childUid }: { childUid: string }) {
             </button>
           </div>
         </form>
+      )}
+    </section>
+  );
+}
+
+function SurpriseModeSection({
+  wishlistId,
+  initialHidePurchases,
+}: {
+  wishlistId: string;
+  initialHidePurchases: boolean;
+}) {
+  const [hidePurchases, setHidePurchases] = useState(initialHidePurchases);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleToggle(next: boolean) {
+    setSaving(true);
+    setError(null);
+    // Optimistic — the switch is the whole control, so it has to move at once.
+    setHidePurchases(next);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/wishlist/update-privacy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, wishlistId, hidePurchases: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setHidePurchases(!next);
+      setError('Något gick fel. Försök igen.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="light-card p-5">
+      <div className="flex items-center gap-2">
+        <Heart size={16} color="var(--color-accent)" />
+        <h2 className="font-display font-bold text-[16px]">Överraskning</h2>
+      </div>
+      <label htmlFor="hide-purchases" className="mt-4 flex items-start gap-3 cursor-pointer">
+        <input
+          id="hide-purchases"
+          type="checkbox"
+          checked={hidePurchases}
+          disabled={saving}
+          onChange={(e) => handleToggle(e.target.checked)}
+          aria-describedby="hide-purchases-hint"
+          className="mt-0.5 shrink-0"
+          style={{ width: 20, height: 20, accentColor: 'var(--color-accent)' }}
+        />
+        <span>
+          <span className="block text-[14px] font-bold" style={{ color: 'var(--color-ink-light)' }}>
+            Dölj köpta och reserverade önskemål för mig
+          </span>
+          <span
+            id="hide-purchases-hint"
+            className="mt-1 block text-[13px] leading-snug"
+            style={{ color: 'var(--color-muted-light)' }}
+          >
+            De du bjuder in ser fortfarande vad som är köpt, så ingen köper
+            dubbelt — men du själv slipper veta. Gäller även aktivitetsloggen.
+          </span>
+        </span>
+      </label>
+      {error && (
+        <p role="alert" className="mt-3 text-[13px]" style={{ color: 'var(--color-destructive)' }}>
+          {error}
+        </p>
       )}
     </section>
   );
@@ -303,12 +376,16 @@ function CoParentInviteSection({
   initialToken,
   initialParents,
   currentUid,
+  accountFree,
 }: {
   wishlistId: string;
   initialToken: string | null;
   initialParents: Array<{ uid: string; displayName: string }>;
   currentUid: string;
+  /** An account-free list has no child, so these people are co-handlers, not co-parents. */
+  accountFree: boolean;
 }) {
+  const roleLabel = accountFree ? 'medhanterare' : 'förälder';
   const [token, setToken] = useState<string | null>(initialToken);
   const [copyLabel, setCopyLabel] = useState('Kopiera');
   const [creating, setCreating] = useState(false);
@@ -319,7 +396,9 @@ function CoParentInviteSection({
   async function handleRemoveParent(uid: string, displayName: string) {
     if (
       !window.confirm(
-        `Ta bort ${displayName} som förälder? Personen förlorar all tillgång till att hantera önskelistan och barnkontot.`
+        accountFree
+          ? `Ta bort ${displayName} som medhanterare? Personen förlorar all tillgång till att hantera önskelistan.`
+          : `Ta bort ${displayName} som förälder? Personen förlorar all tillgång till att hantera önskelistan och barnkontot.`
       )
     )
       return;
@@ -335,7 +414,7 @@ function CoParentInviteSection({
       if (!res.ok) throw new Error();
       setParents((prev) => prev.filter((p) => p.uid !== uid));
     } catch {
-      setError('Kunde inte ta bort föräldern. Försök igen.');
+      setError(`Kunde inte ta bort ${roleLabel}n. Försök igen.`);
     } finally {
       setRemovingUid(null);
     }
@@ -379,11 +458,14 @@ function CoParentInviteSection({
     <section className="light-card p-5">
       <div className="flex items-center gap-2">
         <UserIcon size={16} color="var(--color-accent)" />
-        <h2 className="font-display font-bold text-[16px]">Co-förälder</h2>
+        <h2 className="font-display font-bold text-[16px]">
+          {accountFree ? 'Medhanterare' : 'Co-förälder'}
+        </h2>
       </div>
       <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-        Ge en annan förälder full tillgång att hantera önskelistan. Länken slutar
-        gälla när den har använts en gång.
+        {accountFree
+          ? 'Ge någon annan — t.ex. din partner — full tillgång att hantera önskelistan. Länken slutar gälla när den har använts en gång.'
+          : 'Ge en annan förälder full tillgång att hantera önskelistan. Länken slutar gälla när den har använts en gång.'}
       </p>
       {parents.length > 0 && (
         <ul className="mt-3 flex flex-col gap-1.5">
@@ -434,7 +516,7 @@ function CoParentInviteSection({
             readOnly
             size={1}
             value={inviteUrl ?? ''}
-            aria-label="Co-förälderlänk"
+            aria-label={accountFree ? 'Länk för medhanterare' : 'Co-förälderlänk'}
             className="flex-1 min-w-0 w-0 bg-transparent border-0 outline-none text-[16px] font-mono"
             style={{ color: 'var(--color-ink-light)' }}
           />
@@ -455,14 +537,22 @@ function CoParentInviteSection({
           disabled={creating}
           className="light-cta-outline mt-4"
         >
-          {creating ? 'Skapar…' : 'Skapa co-förälderlänk'}
+          {creating ? 'Skapar…' : accountFree ? 'Skapa länk för medhanterare' : 'Skapa co-förälderlänk'}
         </button>
       )}
     </section>
   );
 }
 
-function DangerZone({ wishlistId, childUid }: { wishlistId: string; childUid: string }) {
+function DangerZone({
+  wishlistId,
+  childUid,
+  accountFree,
+}: {
+  wishlistId: string;
+  childUid: string;
+  accountFree: boolean;
+}) {
   const router = useRouter();
   const [deletingList, setDeletingList] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -547,15 +637,17 @@ function DangerZone({ wishlistId, childUid }: { wishlistId: string; childUid: st
         >
           {deletingList ? 'Tar bort…' : 'Ta bort önskelistan'}
         </button>
-        <button
-          type="button"
-          onClick={handleDeleteChildAccount}
-          disabled={deletingList || deletingAccount}
-          className="rounded-xl px-4 py-3 text-[13px] font-bold text-white disabled:opacity-50"
-          style={{ background: 'var(--color-destructive)' }}
-        >
-          {deletingAccount ? 'Tar bort…' : 'Ta bort barnkonto'}
-        </button>
+        {!accountFree && (
+          <button
+            type="button"
+            onClick={handleDeleteChildAccount}
+            disabled={deletingList || deletingAccount}
+            className="rounded-xl px-4 py-3 text-[13px] font-bold text-white disabled:opacity-50"
+            style={{ background: 'var(--color-destructive)' }}
+          >
+            {deletingAccount ? 'Tar bort…' : 'Ta bort barnkonto'}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -578,6 +670,9 @@ export default function WishlistSettingsPage({
   const [initialParentToken, setInitialParentToken] = useState<string | null>(null);
   const [initialOccasion, setInitialOccasion] = useState<{ name: string; date: string } | null>(null);
   const [childName, setChildName] = useState<string>('');
+  const [accountFree, setAccountFree] = useState(false);
+  const [listTitle, setListTitle] = useState<string>('');
+  const [initialHidePurchases, setInitialHidePurchases] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -607,13 +702,20 @@ export default function WishlistSettingsPage({
         setAccessType(callerIsOwner ? 'child' : 'parent');
         setInitialParentToken(data.currentParentInviteToken ?? null);
         setInitialOccasion(data.occasion ?? null);
+        setListTitle(data.title ?? '');
+        setInitialHidePurchases(data.hidePurchases === true);
 
-        try {
-          const childSnap = await getDoc(doc(db, 'users', data.childUid));
-          const childData = childSnap.data();
-          setChildName(childData?.displayName ?? childData?.username ?? '');
-        } catch {
-          // silent — header just omits the name
+        const listIsAccountFree = isAccountFreeList(data as { childUid?: string });
+        setAccountFree(listIsAccountFree);
+
+        if (!listIsAccountFree) {
+          try {
+            const childSnap = await getDoc(doc(db, 'users', data.childUid));
+            const childData = childSnap.data();
+            setChildName(childData?.displayName ?? childData?.username ?? '');
+          } catch {
+            // silent — header just omits the name
+          }
         }
 
         const resolveNames = (uids: string[]) =>
@@ -673,9 +775,9 @@ export default function WishlistSettingsPage({
         </Link>
         <div>
           <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
-          {childName && (
+          {(accountFree ? listTitle : childName) && (
             <p className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-              {childName}s önskelista
+              {accountFree ? listTitle : `${childName}s önskelista`}
             </p>
           )}
         </div>
@@ -688,6 +790,12 @@ export default function WishlistSettingsPage({
           locked={accessType === 'child' && parents.length > 0 && initialOccasion !== null}
         />
         <ShareLinkPanel wishlistId={wishlistId} viewers={viewers} />
+        {accountFree && (
+          <SurpriseModeSection
+            wishlistId={wishlistId}
+            initialHidePurchases={initialHidePurchases}
+          />
+        )}
         {accessType === 'parent' && (
           <>
             <CoParentInviteSection
@@ -695,9 +803,15 @@ export default function WishlistSettingsPage({
               initialToken={initialParentToken}
               initialParents={parents}
               currentUid={user.uid}
+              accountFree={accountFree}
             />
-            <ResetChildPasswordSection childUid={wishlistId} />
-            <DangerZone wishlistId={wishlistId} childUid={wishlistId} />
+            {/* An account-free list has no child login — no password, no account to delete. */}
+            {!accountFree && <ResetChildPasswordSection childUid={wishlistId} />}
+            <DangerZone
+              wishlistId={wishlistId}
+              childUid={wishlistId}
+              accountFree={accountFree}
+            />
           </>
         )}
       </div>

@@ -3,11 +3,17 @@ import { Timestamp } from 'firebase/firestore';
 // wishlists/{wishlistId}
 export interface WishlistDoc {
   id: string;
-  childUid: string;       // UID of the child who owns this wishlist
+  childUid: string;       // UID of the child who owns this wishlist.
+                          // '' for account-free lists (see ownerUid) — no child login exists.
+  ownerUid?: string;      // Creator of an account-free list; absent on child-account lists.
   viewerUids: string[];   // UIDs of viewers who have been granted access
   parentUids: string[];   // UIDs of users with parent-level admin access (D-04)
   createdAt: Timestamp;
-  title?: string;         // Optional: parent-given wishlist name (e.g. "Elsas önskelista")
+  title?: string;         // Optional: parent-given wishlist name (e.g. "Elsas önskelista").
+                          // Required on account-free lists — it is the only name they have.
+  hidePurchases?: boolean; // Surprise mode: hides purchaseStatus + activityLog from the list's
+                           // OWN parents, so someone who made a list for their own wedding
+                           // doesn't see who bought what. Viewers always see everything.
   currentInviteToken?: string;          // Active share link token for viewer invites
   currentParentInviteToken?: string;    // Active share link token for parent invites (D-11)
   occasion?: {
