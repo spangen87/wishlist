@@ -13,7 +13,7 @@ import { isAccountFreeList, wishlistDisplayName } from '@/lib/wishlist-kind';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
 import Link from 'next/link';
-import { LightShell, ArrowLeft, Cog, Plus, Pencil, Heart, Calendar } from '@/components/galaxy';
+import { LightShell, ArrowLeft, Cog, Plus, Pencil, Heart, Calendar, Molly } from '@/components/galaxy';
 
 export default function ViewerWishlistPage({
   params,
@@ -29,6 +29,10 @@ export default function ViewerWishlistPage({
   const [displayNames, setDisplayNames] = useState<Map<string, string>>(new Map());
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Someone opening a list URL they were never invited to: the rules deny both
+  // the wishlist doc and its items, so the page has to say so instead of
+  // waiting on data that will never arrive.
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const [wishlistTitle, setWishlistTitle] = useState<string>('');
   const [childUid, setChildUid] = useState<string>('');
@@ -64,6 +68,7 @@ export default function ViewerWishlistPage({
     setEditingItemId(null);
     setItemActionError(null);
     setCanSeePurchases(true);
+    setAccessDenied(false);
   }
 
   useEffect(() => {
@@ -113,7 +118,12 @@ export default function ViewerWishlistPage({
     let unsubStatus: (() => void) | null = null;
 
     getDoc(doc(db, 'wishlists', wishlistId)).then((wishlistDoc) => {
-      if (cancelled || !wishlistDoc.exists()) return;
+      if (cancelled) return;
+      if (!wishlistDoc.exists()) {
+        setAccessDenied(true);
+        setDataLoading(false);
+        return;
+      }
       const wlData = wishlistDoc.data();
       setWishlistTitle(wlData.title ?? '');
       setRenameValue(wlData.title ?? '');
@@ -124,6 +134,16 @@ export default function ViewerWishlistPage({
       setOccasion(wlData.occasion ?? null);
       setChildUid(wlData.childUid ?? '');
       if (wlData.childUid) fetchChildName(wlData.childUid);
+
+      if (
+        !callerIsParent &&
+        !viewerUids.includes(user.uid) &&
+        wlData.childUid !== user.uid
+      ) {
+        setAccessDenied(true);
+        setDataLoading(false);
+        return;
+      }
 
       const maySeePurchases =
         viewerUids.includes(user.uid) || (callerIsParent && wlData.hidePurchases !== true);
@@ -140,13 +160,25 @@ export default function ViewerWishlistPage({
         });
       });
     }).catch(() => {
-      // silent
-    });
-
-    const unsubItems = subscribeToItems(wishlistId, (newItems) => {
-      setItems(newItems);
+      // The only way this read fails is the rules refusing it — the caller is
+      // not the child, a viewer or a parent on this list.
+      if (cancelled) return;
+      setAccessDenied(true);
       setDataLoading(false);
     });
+
+    const unsubItems = subscribeToItems(
+      wishlistId,
+      (newItems) => {
+        setItems(newItems);
+        setDataLoading(false);
+      },
+      () => {
+        if (cancelled) return;
+        setAccessDenied(true);
+        setDataLoading(false);
+      }
+    );
 
     return () => {
       cancelled = true;
@@ -258,6 +290,41 @@ export default function ViewerWishlistPage({
 
   if (loading || dataLoading) return <LoadingSkeleton />;
   if (!user) return null;
+
+  if (accessDenied) {
+    return (
+      <LightShell>
+        <header
+          className="flex items-center gap-3 app-page app-top pb-4"
+          style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+        >
+          <Link
+            href="/dashboard"
+            aria-label="Tillbaka till mina listor"
+            className="flex items-center justify-center min-h-[44px] min-w-[44px] -ml-2"
+            style={{ color: 'var(--color-ink-light)' }}
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="font-display font-bold text-[20px]">Önskelista</h1>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 app-page app-bottom text-center">
+          <Molly size={72} mood="thinking" eyeColor="#1C1B2E" blushColor="#FF7AB8" />
+          <h2 className="font-display font-bold text-[20px]" style={{ color: 'var(--color-ink-light)' }}>
+            Du har inte tillgång till den här listan
+          </h2>
+          <p className="text-[14px] max-w-xs leading-relaxed" style={{ color: 'var(--color-muted-light)' }}>
+            Listan kan ha tagits bort, eller så är du inte inbjuden till den. Be
+            den som äger listan om en delningslänk — en list-adress räcker inte
+            i sig för att komma in.
+          </p>
+          <Link href="/dashboard" className="light-cta-outline mt-1">
+            Till mina listor
+          </Link>
+        </div>
+      </LightShell>
+    );
+  }
 
   if (error) {
     return (

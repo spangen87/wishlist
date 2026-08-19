@@ -24,9 +24,13 @@ export async function getOrCreateWishlist(childUid: string): Promise<string> {
 }
 
 // Pattern 2 (RESEARCH.md): Real-time items listener ordered by position string.
+// onError fires when the rules deny the read — someone opening a list URL they
+// were never invited to. Without it the caller's loading flag never clears and
+// the page sits on a skeleton forever.
 export function subscribeToItems(
   wishlistId: string,
-  onItems: (items: WishItemDoc[]) => void
+  onItems: (items: WishItemDoc[]) => void,
+  onError?: () => void
 ): () => void {
   const q = query(
     collection(db, 'wishlists', wishlistId, 'items'),
@@ -38,7 +42,7 @@ export function subscribeToItems(
       ...d.data() as Omit<WishItemDoc, 'id'>,
     }));
     onItems(items);
-  });
+  }, () => { onError?.(); });
 }
 
 // Pattern 3 (RESEARCH.md): Add item — append after last item.

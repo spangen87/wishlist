@@ -69,7 +69,8 @@ export function subscribeToPurchaseStatus(
 export function subscribeToActivityLog(
   wishlistId: string,
   onEntries: (entries: ActivityLogDoc[], lastDoc: QueryDocumentSnapshot | null) => void,
-  afterDoc?: QueryDocumentSnapshot | null
+  afterDoc?: QueryDocumentSnapshot | null,
+  onError?: () => void
 ): () => void {
   let q = query(
     collection(db, 'wishlists', wishlistId, 'activityLog'),
@@ -91,7 +92,7 @@ export function subscribeToActivityLog(
     })) as ActivityLogDoc[];
     const last = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
     onEntries(entries, last);
-  });
+  }, () => { onError?.(); });
 }
 
 // PERF-04: one-shot paginated read for loadMore — avoids onSnapshot+unsub race condition.

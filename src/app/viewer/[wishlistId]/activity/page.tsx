@@ -66,13 +66,19 @@ export default function ActivityLogPage({
         router.push(`/viewer/${wishlistId}`);
         return;
       }
-      unsub = subscribeToActivityLog(wishlistId, (newEntries, newLastDoc) => {
-        setEntries(newEntries);
-        setLastDoc(newLastDoc);
-        setHasMore(newEntries.length === 50);
-        setDataLoading(false);
-        newEntries.forEach((e) => fetchDisplayName(e.viewerUid));
-      });
+      unsub = subscribeToActivityLog(
+        wishlistId,
+        (newEntries, newLastDoc) => {
+          setEntries(newEntries);
+          setLastDoc(newLastDoc);
+          setHasMore(newEntries.length === 50);
+          setDataLoading(false);
+          newEntries.forEach((e) => fetchDisplayName(e.viewerUid));
+        },
+        null,
+        // A denied read would otherwise leave the page on "Laddar…" forever.
+        () => { if (!cancelled) router.push(`/viewer/${wishlistId}`); }
+      );
     }).catch(() => {
       if (!cancelled) router.push(`/viewer/${wishlistId}`);
     });
