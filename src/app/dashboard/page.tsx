@@ -9,6 +9,7 @@ import { subscribeToViewerWishlists, subscribeToParentWishlists } from '@/lib/fi
 import { WishlistDashboardCard } from '@/components/viewer/WishlistDashboardCard';
 import { ParentWishlistDashboardCard } from '@/components/viewer/ParentWishlistDashboardCard';
 import { LightShell, Molly, Plus, LogOut } from '@/components/galaxy';
+import { isAccountFreeList, wishlistDisplayName } from '@/lib/wishlist-kind';
 import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistStats {
@@ -27,7 +28,9 @@ export default function DashboardPage() {
   const [parentDataLoading, setParentDataLoading] = useState(true);
   const [viewerDataLoading, setViewerDataLoading] = useState(true);
   const fetchedNamesRef = useRef(new Set<string>());
-  const statsUnsubsRef = useRef(new Map<string, () => void>());
+  const statsUnsubsRef = useRef(
+    new Map<string, { canSeePurchases: boolean; unsub: () => void }>()
+  );
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -47,7 +50,7 @@ export default function DashboardPage() {
     } catch { /* silent */ }
   }, []);
 
-  const subscribeToStats = useCallback((wishlistId: string) => {
+  const subscribeToStats = useCallback((wishlistId: string, canSeePurchases: boolean) => {
     const itemUnsub = onSnapshot(
       collection(db, 'wishlists', wishlistId, 'items'),
       (snap) => {
@@ -57,6 +60,9 @@ export default function DashboardPage() {
         });
       }
     );
+    // A list in surprise mode denies its own parents the purchaseStatus
+    // subcollection — subscribing anyway would only produce a rules error.
+    if (!canSeePurchases) return () => { itemUnsub(); };
     const statusUnsub = onSnapshot(
       collection(db, 'wishlists', wishlistId, 'purchaseStatus'),
       (snap) => {
@@ -73,10 +79,24 @@ export default function DashboardPage() {
   useEffect(() => {
     if (loading || !user) return;
 
-    function subscribeToStatsTracked(wishlistId: string) {
-      if (statsUnsubsRef.current.has(wishlistId)) return;
-      const unsub = subscribeToStats(wishlistId);
-      statsUnsubsRef.current.set(wishlistId, unsub);
+    function subscribeToStatsTracked(wishlistId: string, canSeePurchases: boolean) {
+      const existing = statsUnsubsRef.current.get(wishlistId);
+      if (existing) {
+        // Surprise mode can be toggled from another tab. Keeping the original
+        // subscription would leave the card stuck at "0 köpta" after turning it
+        // off, or hold a now-denied listener open after turning it on.
+        if (existing.canSeePurchases === canSeePurchases) return;
+        existing.unsub();
+        if (!canSeePurchases) {
+          setStats((prev) => {
+            const stats = prev.get(wishlistId);
+            if (!stats) return prev;
+            return new Map(prev).set(wishlistId, { ...stats, purchasedCount: 0 });
+          });
+        }
+      }
+      const unsub = subscribeToStats(wishlistId, canSeePurchases);
+      statsUnsubsRef.current.set(wishlistId, { canSeePurchases, unsub });
     }
 
     const unsubParent = subscribeToParentWishlists(
@@ -85,8 +105,8 @@ export default function DashboardPage() {
         setParentWishlists(newLists);
         setParentDataLoading(false);
         newLists.forEach((wl) => {
-          fetchChildName(wl.childUid);
-          subscribeToStatsTracked(wl.id);
+          if (wl.childUid) fetchChildName(wl.childUid);
+          subscribeToStatsTracked(wl.id, wl.hidePurchases !== true);
         });
       },
       () => setParentDataLoading(false)
@@ -98,8 +118,9 @@ export default function DashboardPage() {
         setViewerWishlists(newLists);
         setViewerDataLoading(false);
         newLists.forEach((wl) => {
-          fetchChildName(wl.childUid);
-          subscribeToStatsTracked(wl.id);
+          if (wl.childUid) fetchChildName(wl.childUid);
+          // Viewers always see purchases — surprise mode only hides them from parents.
+          subscribeToStatsTracked(wl.id, true);
         });
       },
       () => setViewerDataLoading(false)
@@ -108,7 +129,7 @@ export default function DashboardPage() {
     return () => {
       unsubParent();
       unsubViewer();
-      statsUnsubsRef.current.forEach((unsub) => unsub());
+      statsUnsubsRef.current.forEach(({ unsub }) => unsub());
       statsUnsubsRef.current.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,21 +184,29 @@ export default function DashboardPage() {
 
   const userInitial = (user.email ?? '?').slice(0, 1).toUpperCase();
 
-  // Upcoming occasions first (soonest on top), then the rest by child name,
+  const nameOf = (wl: WishlistDoc) => wishlistDisplayName(wl, childNames.get(wl.childUid));
+
+  // Upcoming occasions first (soonest on top), then the rest by name,
   // so the list a parent needs to act on is always at the top.
   const todayIso = new Date().toISOString().slice(0, 10);
   const sortKey = (wl: WishlistDoc) => {
     const date = wl.occasion?.date;
     return date && date >= todayIso ? date : '9999-99-99';
   };
-  const sortedParentWishlists = [...parentWishlists].sort((a, b) => {
+  const byOccasionThenName = (a: WishlistDoc, b: WishlistDoc) => {
     const dateCmp = sortKey(a).localeCompare(sortKey(b));
     if (dateCmp !== 0) return dateCmp;
-    return (childNames.get(a.childUid) ?? '').localeCompare(
-      childNames.get(b.childUid) ?? '',
-      'sv'
-    );
-  });
+    return nameOf(a).localeCompare(nameOf(b), 'sv');
+  };
+
+  // Child accounts and account-free lists are both parent-managed, but they
+  // live in separate sections — one is a person, the other is just a list.
+  const childWishlists = parentWishlists
+    .filter((wl) => !isAccountFreeList(wl))
+    .sort(byOccasionThenName);
+  const ownWishlists = parentWishlists
+    .filter((wl) => isAccountFreeList(wl))
+    .sort(byOccasionThenName);
 
   return (
     <LightShell>
@@ -215,7 +244,7 @@ export default function DashboardPage() {
             <h2 className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
               Mina barn
             </h2>
-            {parentWishlists.length > 0 && (
+            {childWishlists.length > 0 && (
               <button
                 type="button"
                 onClick={() => router.push('/add-child')}
@@ -227,7 +256,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {parentWishlists.length === 0 ? (
+          {childWishlists.length === 0 ? (
             <button
               type="button"
               onClick={() => router.push('/add-child')}
@@ -242,11 +271,11 @@ export default function DashboardPage() {
             </button>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {sortedParentWishlists.map((wl) => (
+              {childWishlists.map((wl) => (
                 <ParentWishlistDashboardCard
                   key={wl.id}
                   wishlist={wl}
-                  childName={childNames.get(wl.childUid) ?? '…'}
+                  name={childNames.get(wl.childUid) ?? '…'}
                   itemCount={stats.get(wl.id)?.itemCount ?? 0}
                   purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
                 />
@@ -263,6 +292,70 @@ export default function DashboardPage() {
                 }}
               >
                 + Lägg till barn
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* Section: Mina listor — lists with no account behind them */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-bold tracking-caps" style={{ color: 'var(--color-muted-light)' }}>
+              Mina listor
+            </h2>
+            {ownWishlists.length > 0 && (
+              <button
+                type="button"
+                onClick={() => router.push('/add-list')}
+                className="text-[12px] font-bold flex items-center gap-1"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                <Plus size={12} /> Skapa lista
+              </button>
+            )}
+          </div>
+
+          {ownWishlists.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => router.push('/add-list')}
+              className="w-full px-4 py-5 rounded-xl text-center"
+              style={{
+                border: '1.5px dashed var(--color-border-light)',
+                background: '#fff',
+              }}
+            >
+              <span className="block text-[14px] font-bold" style={{ color: 'var(--color-accent)' }}>
+                + Skapa lista utan konto
+              </span>
+              <span className="mt-1 block text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+                För små barn, dop, bröllop — ingen behöver logga in
+              </span>
+            </button>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ownWishlists.map((wl) => (
+                <ParentWishlistDashboardCard
+                  key={wl.id}
+                  wishlist={wl}
+                  name={wishlistDisplayName(wl)}
+                  itemCount={stats.get(wl.id)?.itemCount ?? 0}
+                  purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
+                  hidePurchases={wl.hidePurchases === true}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => router.push('/add-list')}
+                className="text-center px-4 py-5 rounded-xl text-[13px] font-bold flex items-center justify-center"
+                style={{
+                  color: 'var(--color-accent)',
+                  border: '1.5px dashed var(--color-border-light)',
+                  background: '#fff',
+                  minHeight: 90,
+                }}
+              >
+                + Skapa lista
               </button>
             </div>
           )}
@@ -289,7 +382,7 @@ export default function DashboardPage() {
                 <WishlistDashboardCard
                   key={wl.id}
                   wishlist={wl}
-                  childName={childNames.get(wl.childUid) ?? '…'}
+                  name={nameOf(wl)}
                   itemCount={stats.get(wl.id)?.itemCount ?? 0}
                   purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
                 />

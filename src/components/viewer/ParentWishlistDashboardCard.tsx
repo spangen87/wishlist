@@ -4,9 +4,11 @@ import type { WishlistDoc } from '@/types/firestore';
 
 interface ParentWishlistDashboardCardProps {
   wishlist: WishlistDoc;
-  childName: string;
+  name: string;
   itemCount: number;
   purchasedCount: number;
+  /** Surprise mode — the purchase count is hidden from this list's own parents. */
+  hidePurchases?: boolean;
 }
 
 const INITIAL_BG = ['#6E5BE8', '#FF7AB8', '#7DE3FF', '#85F2CA', '#FFD36E'];
@@ -19,13 +21,14 @@ function pickColor(seed: string) {
 
 export function ParentWishlistDashboardCard({
   wishlist,
-  childName,
+  name,
   itemCount,
   purchasedCount,
+  hidePurchases = false,
 }: ParentWishlistDashboardCardProps) {
   const occasion = wishlist.occasion;
-  const initial = (childName || '?').slice(0, 1).toUpperCase();
-  const accent = pickColor(wishlist.id || childName);
+  const initial = (name || '?').slice(0, 1).toUpperCase();
+  const accent = pickColor(wishlist.id || name);
   const progress = itemCount > 0 ? Math.round((purchasedCount / itemCount) * 100) : 0;
 
   return (
@@ -50,7 +53,7 @@ export function ParentWishlistDashboardCard({
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--color-ink-light)' }}>
-            {childName}
+            {name}
           </h2>
           {occasion && (
             <p className="text-[12px] font-tabular truncate" style={{ color: accent }}>
@@ -63,18 +66,20 @@ export function ParentWishlistDashboardCard({
             </p>
           )}
           <p className="text-[12px] font-tabular mt-0.5" style={{ color: 'var(--color-muted-light)' }}>
-            {itemCount} {itemCount === 1 ? 'önskemål' : 'önskemål'} · {purchasedCount} köpta
+            {itemCount} önskemål{hidePurchases ? '' : ` · ${purchasedCount} köpta`}
           </p>
-          <div
-            className="mt-2 h-1 rounded-full overflow-hidden"
-            style={{ background: 'var(--color-border-light)' }}
-            aria-hidden="true"
-          >
+          {!hidePurchases && (
             <div
-              className="h-full"
-              style={{ width: `${progress}%`, background: accent, transition: 'width 200ms ease' }}
-            />
-          </div>
+              className="mt-2 h-1 rounded-full overflow-hidden"
+              style={{ background: 'var(--color-border-light)' }}
+              aria-hidden="true"
+            >
+              <div
+                className="h-full"
+                style={{ width: `${progress}%`, background: accent, transition: 'width 200ms ease' }}
+              />
+            </div>
+          )}
         </div>
       </Link>
 

@@ -5,6 +5,8 @@ import { LinkIcon } from '@/components/galaxy';
 
 interface ShareLinkPanelProps {
   wishlistId: string;
+  /** Account-free lists are not always a child's, so the copy stays neutral. */
+  accountFree?: boolean;
   viewers: Array<{ uid: string; displayName: string }>;
 }
 
@@ -16,7 +18,7 @@ function pickColor(seed: string) {
   return VIEWER_COLORS[h % VIEWER_COLORS.length];
 }
 
-export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
+export function ShareLinkPanel({ wishlistId, viewers, accountFree = false }: ShareLinkPanelProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copyLabel, setCopyLabel] = useState('Kopiera');
@@ -137,7 +139,7 @@ export function ShareLinkPanel({ wishlistId, viewers }: ShareLinkPanelProps) {
         <h2 className="font-display font-bold text-[16px]">Delningslänk</h2>
       </div>
       <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-        Dela med mormor, farfar och vänner
+        {accountFree ? 'Dela med gäster, släkt och vänner' : 'Dela med mormor, farfar och vänner'}
       </p>
 
       {error && (

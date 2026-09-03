@@ -2,6 +2,7 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { isAccountFreeList } from '@/lib/wishlist-kind';
 
 export async function DELETE(
   request: NextRequest,
@@ -80,15 +81,42 @@ export async function DELETE(
       adminDb.collection('wishlists').where('viewerUids', 'array-contains', targetUid).get(),
     ]);
 
+    // A list with no account behind it survives only through its parents. Once
+    // the last one leaves nobody can ever reach it again — while its share
+    // links would still work — so it goes with them.
+    const abandonedLists = parentLists.docs.filter((d) => {
+      const data = d.data();
+      const parentUids: string[] = data.parentUids ?? [];
+      return isAccountFreeList(data as { childUid?: string }) &&
+        parentUids.every((uid) => uid === targetUid);
+    });
+    const abandonedIds = new Set(abandonedLists.map((d) => d.id));
+
     const removalBatch = adminDb.batch();
-    parentLists.docs.forEach((d) =>
-      removalBatch.update(d.ref, { parentUids: FieldValue.arrayRemove(targetUid) })
-    );
-    viewerLists.docs.forEach((d) =>
-      removalBatch.update(d.ref, { viewerUids: FieldValue.arrayRemove(targetUid) })
-    );
+    parentLists.docs
+      .filter((d) => !abandonedIds.has(d.id))
+      .forEach((d) =>
+        removalBatch.update(d.ref, { parentUids: FieldValue.arrayRemove(targetUid) })
+      );
+    viewerLists.docs
+      .filter((d) => !abandonedIds.has(d.id))
+      .forEach((d) =>
+        removalBatch.update(d.ref, { viewerUids: FieldValue.arrayRemove(targetUid) })
+      );
     removalBatch.delete(adminDb.collection('users').doc(targetUid));
     await removalBatch.commit();
+
+    for (const listDoc of abandonedLists) {
+      // recursiveDelete cannot join a batch — it walks the subcollections itself.
+      await adminDb.recursiveDelete(listDoc.ref);
+      const inviteSnap = await adminDb.collection('invites')
+        .where('wishlistId', '==', listDoc.id).get();
+      if (!inviteSnap.empty) {
+        const inviteBatch = adminDb.batch();
+        inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
+        await inviteBatch.commit();
+      }
+    }
   }
 
   // Delete Firebase Auth user — idempotent (Pitfall 3: handle auth/user-not-found)

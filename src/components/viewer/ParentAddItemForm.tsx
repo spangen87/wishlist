@@ -1,21 +1,30 @@
 'use client';
 import { useState } from 'react';
 import { auth } from '@/lib/firebase/client';
+import { updateWishItem } from '@/lib/firebase/wishlist';
 import { normalizeUrl, isSafeUrl } from '@/lib/url';
+import type { WishItemDoc } from '@/types/firestore';
 
 interface ParentAddItemFormProps {
   wishlistId: string;
+  /** Pass an item to edit it in place; leave it out to add a new wish. */
+  item?: WishItemDoc;
   onClose: () => void;
   onError: (msg: string) => void;
 }
 
-export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddItemFormProps) {
-  const [title, setTitle] = useState('');
-  const [productUrl, setProductUrl] = useState('');
-  const [note, setNote] = useState('');
-  const [price, setPrice] = useState<number | ''>('');
+export function ParentAddItemForm({ wishlistId, item, onClose, onError }: ParentAddItemFormProps) {
+  const isEdit = item !== undefined;
+  const [title, setTitle] = useState(item?.title ?? '');
+  const [productUrl, setProductUrl] = useState(item?.productUrl ?? '');
+  const [note, setNote] = useState(item?.note ?? '');
+  const [price, setPrice] = useState<number | ''>(item?.price ?? '');
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
+
+  // Two forms can be on screen at once (add + edit), so the field ids have to
+  // stay unique or the labels point at the wrong input.
+  const fieldId = (name: string) => `parent-item-${name}-${item?.id ?? 'new'}`;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,6 +40,18 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
     }
     setSaving(true);
     try {
+      if (isEdit) {
+        // Parents may write items directly under firestore.rules, as long as
+        // they leave isFavorite alone — which this form never touches.
+        await updateWishItem(wishlistId, item!.id, {
+          title: title.trim(),
+          productUrl: normalizedProductUrl || undefined,
+          note: note.trim() || undefined,
+          price: price !== '' ? Number(price) : undefined,
+        });
+        onClose();
+        return;
+      }
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('Not authenticated');
       const res = await fetch('/api/wishlist/add-item', {
@@ -62,14 +83,14 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
     <form onSubmit={handleSubmit} noValidate className="light-card p-5 flex flex-col gap-3">
       <div>
         <label
-          htmlFor="parent-item-title"
+          htmlFor={fieldId('title')}
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: 'var(--color-muted-light)' }}
         >
           Titel
         </label>
         <input
-          id="parent-item-title"
+          id={fieldId('title')}
           type="text"
           required
           autoFocus
@@ -85,14 +106,14 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
       </div>
       <div>
         <label
-          htmlFor="parent-item-price"
+          htmlFor={fieldId('price')}
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: 'var(--color-muted-light)' }}
         >
           Ungefärligt pris (kr)
         </label>
         <input
-          id="parent-item-price"
+          id={fieldId('price')}
           type="number"
           min="0"
           value={price}
@@ -102,14 +123,14 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
       </div>
       <div>
         <label
-          htmlFor="parent-item-url"
+          htmlFor={fieldId('url')}
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: 'var(--color-muted-light)' }}
         >
           Länk till produkt
         </label>
         <input
-          id="parent-item-url"
+          id={fieldId('url')}
           type="url"
           value={productUrl}
           onChange={(e) => setProductUrl(e.target.value)}
@@ -119,14 +140,14 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
       </div>
       <div>
         <label
-          htmlFor="parent-item-note"
+          htmlFor={fieldId('note')}
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: 'var(--color-muted-light)' }}
         >
           Anteckning
         </label>
         <textarea
-          id="parent-item-note"
+          id={fieldId('note')}
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -135,7 +156,7 @@ export function ParentAddItemForm({ wishlistId, onClose, onError }: ParentAddIte
       </div>
       <div className="flex gap-3 flex-wrap mt-1">
         <button type="submit" disabled={saving} className="light-cta">
-          {saving ? 'Sparar…' : 'Lägg till önskemål'}
+          {saving ? 'Sparar…' : isEdit ? 'Spara ändringar' : 'Lägg till önskemål'}
         </button>
         <button
           type="button"

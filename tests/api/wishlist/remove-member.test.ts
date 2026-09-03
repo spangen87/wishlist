@@ -28,7 +28,13 @@ function docMocks(key: string): DocMocks {
 
 const mockAdminDb = {
   collection: jest.fn((col: string) => ({
-    doc: jest.fn((id: string) => docMocks(`${col}/${id}`)),
+    doc: jest.fn((id: string) => {
+      // Mirror firebase-admin: an empty document path throws. Account-free
+      // lists store childUid as '', so a mock that quietly accepted it would
+      // hide the very crash this suite is meant to catch.
+      if (!id) throw new Error('Document path must be a non-empty string');
+      return docMocks(`${col}/${id}`);
+    }),
   })),
 };
 
@@ -142,5 +148,32 @@ describe('POST /api/wishlist/remove-member', () => {
     );
     expect(res.status).toBe(409);
     expect(docMocks('wishlists/wl-1').update).not.toHaveBeenCalled();
+  });
+  it('removes a co-handler from an account-free list, which has no child doc', async () => {
+    // childUid is '' here — mirroring users/{childUid} would throw, and it used
+    // to do so *after* the removal had committed, so the caller saw a failure
+    // for a change that had already happened.
+    docMocks('wishlists/wl-free').get.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        childUid: '',
+        ownerUid: 'uid-parent-a',
+        parentUids: ['uid-parent-a', 'uid-parent-b'],
+        viewerUids: [],
+      }),
+    });
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-parent-a' });
+    const res = await POST(
+      makeRequest({
+        idToken: 't',
+        wishlistId: 'wl-free',
+        memberUid: 'uid-parent-b',
+        memberType: 'parent',
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(docMocks('wishlists/wl-free').update).toHaveBeenCalledWith({
+      parentUids: { op: 'arrayRemove', v: ['uid-parent-b'] },
+    });
   });
 });

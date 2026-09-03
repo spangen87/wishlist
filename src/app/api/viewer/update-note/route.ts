@@ -1,6 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { canActOnPurchases } from '@/lib/purchase-access';
 import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
@@ -27,14 +28,15 @@ export async function POST(request: NextRequest) {
 
   const { uid } = decoded;
 
-  // Verify caller is a viewer
+  // Verify caller may act on this wishlist's purchases
   const wishlistSnap = await adminDb.collection('wishlists').doc(wishlistId).get();
   if (!wishlistSnap.exists) {
     return NextResponse.json({ error: 'Wishlist not found' }, { status: 404 });
   }
   const viewerUids: string[] = wishlistSnap.data()!.viewerUids ?? [];
-  const parentUids: string[] = wishlistSnap.data()!.parentUids ?? [];
-  if (!viewerUids.includes(uid) && !parentUids.includes(uid)) {
+  // Surprise mode keeps the list's own parents out of the purchase side —
+  // the Admin SDK ignores firestore.rules, so re-check it here.
+  if (!canActOnPurchases(uid, wishlistSnap.data()!)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

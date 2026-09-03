@@ -171,4 +171,38 @@ describe('POST /api/invite/redeem', () => {
     const res = await POST(makeRequest({ idToken: 't', token: 'tok-viewer' }));
     expect(res.status).toBe(409);
   });
+  it('keeps a list parent out of viewerUids when they open their own guest link', async () => {
+    // Viewers see purchases unconditionally, so adding an existing parent here
+    // would silently switch off surprise mode for the person it protects.
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-existing-parent', role: 'parent' });
+    setDoc('wishlists/wl-free', {
+      childUid: '',
+      ownerUid: 'uid-existing-parent',
+      parentUids: ['uid-existing-parent'],
+      viewerUids: [],
+      hidePurchases: true,
+    });
+    setDoc('invites/tok-free', { wishlistId: 'wl-free', active: true });
+
+    const res = await POST(makeRequest({ idToken: 't', token: 'tok-free' }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ wishlistId: 'wl-free', alreadyMember: true });
+    expect(docMocks('wishlists/wl-free').update).not.toHaveBeenCalled();
+  });
+
+  it('lets a guest join an account-free list without touching a child profile', async () => {
+    setDoc('wishlists/wl-free', {
+      childUid: '',
+      ownerUid: 'uid-owner',
+      parentUids: ['uid-owner'],
+      viewerUids: [],
+    });
+    setDoc('invites/tok-free', { wishlistId: 'wl-free', active: true });
+
+    const res = await POST(makeRequest({ idToken: 't', token: 'tok-free' }));
+    expect(res.status).toBe(200);
+    expect(docMocks('wishlists/wl-free').update).toHaveBeenCalledWith({
+      viewerUids: { op: 'arrayUnion', v: ['uid-caller'] },
+    });
+  });
 });
