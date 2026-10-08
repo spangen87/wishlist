@@ -28,7 +28,7 @@ export default function AddChildPage() {
   return (
     <LightShell>
       <header
-        className="flex items-center gap-3 app-page app-top pb-4"
+        className="app-sticky flex items-center gap-3 app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link

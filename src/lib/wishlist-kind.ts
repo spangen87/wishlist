@@ -27,6 +27,24 @@ export function wishlistDisplayName(
 }
 
 /**
+ * Name for a list shown next to other lists (a switcher, the dashboard). A
+ * child can have several lists, and the child's name alone would make them
+ * indistinguishable — so when `lists` holds more than one list of the same
+ * child, the list's own title is added.
+ */
+export function wishlistNameAmong(
+  wishlist: { childUid?: string; title?: string },
+  lists: { childUid?: string }[],
+  childName?: string,
+): string {
+  const base = wishlistDisplayName(wishlist, childName);
+  if (isAccountFreeList(wishlist) || !childName?.trim()) return base;
+  const sameChild = lists.filter((wl) => wl.childUid === wishlist.childUid).length;
+  const title = wishlist.title?.trim();
+  return sameChild > 1 && title ? `${base} · ${title}` : base;
+}
+
+/**
  * Suggestions for the "Tillfälle" field, offered both when a list is created
  * and when it is edited later. Kept in one place so a wedding list created on
  * /add-list still finds "Bröllop" in the settings dropdown.

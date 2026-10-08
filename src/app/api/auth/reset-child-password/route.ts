@@ -1,6 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { getChildParentUids } from '@/lib/firebase/child-lists';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -31,13 +32,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Authorize: caller must be a parent of the target child.
-  // Source of truth is wishlists/{childUid}.parentUids (set on register-child + invite redemption).
-  const wishlistSnap = await adminDb.collection('wishlists').doc(childUid).get();
-  if (!wishlistSnap.exists) {
-    return NextResponse.json({ error: 'Child not found' }, { status: 404 });
-  }
-  const parentUids: string[] = wishlistSnap.data()?.parentUids ?? [];
+  // Authorize: caller must be a parent of the target child — on any of the
+  // child's lists, since the first one (wishlists/{childUid}) may be deleted.
+  const parentUids = await getChildParentUids(childUid);
   if (!parentUids.includes(decoded.uid)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

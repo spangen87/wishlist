@@ -2,6 +2,7 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { getChildLists } from '@/lib/firebase/child-lists';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -87,6 +88,22 @@ export async function POST(request: NextRequest) {
       currentParentInviteToken: FieldValue.delete(),
     });
     await inviteRef.update({ active: false });
+
+    // A parent is a parent of the child, not of one list — give them the
+    // child's other lists too, the same way the invited list was updated.
+    if (childUid) {
+      const siblings = (await getChildLists(childUid)).filter((d) => d.id !== wishlistId);
+      if (siblings.length > 0) {
+        const siblingBatch = adminDb.batch();
+        siblings.forEach((d) =>
+          siblingBatch.update(d.ref, {
+            parentUids: FieldValue.arrayUnion(uid),
+            viewerUids: FieldValue.arrayRemove(uid),
+          })
+        );
+        await siblingBatch.commit();
+      }
+    }
 
     // Keep users/{childUid}.parentUids in sync — the account-delete route falls
     // back to it when the wishlist doc is already gone. Account-free lists have

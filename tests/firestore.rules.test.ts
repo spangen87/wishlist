@@ -4,7 +4,7 @@ import {
   assertSucceeds,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -523,5 +523,33 @@ describe('Firestore Security Rules — Privacy Boundary', () => {
     await assertFails(setDoc(ref, { viewerUids: [CHILD_UID] }, { merge: true }));
     await assertFails(setDoc(ref, { childUid: 'someone-else' }, { merge: true }));
     await assertFails(setDoc(ref, { ownerUid: CHILD_UID }, { merge: true }));
+  });
+
+  // === A child with several lists ===
+  // Further lists get a generated ID but keep the child's UID in childUid —
+  // WISHLIST_ID above has exactly that shape.
+
+  it('ALLOW: child can list all of their own wishlists by childUid', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'wishlists', 'list-second'), {
+        childUid: CHILD_UID,
+        viewerUids: [],
+        parentUids: [PARENT_UID],
+        title: 'Julklappar',
+        createdAt: new Date(),
+      });
+    });
+    const childCtx = testEnv.authenticatedContext(CHILD_UID);
+    const snap = await assertSucceeds(
+      getDocs(query(collection(childCtx.firestore(), 'wishlists'), where('childUid', '==', CHILD_UID)))
+    );
+    expect(snap.docs.map((d) => d.id).sort()).toEqual(['list-second', WISHLIST_ID]);
+  });
+
+  it("DENY: child cannot list another child's wishlists", async () => {
+    const otherCtx = testEnv.authenticatedContext('other-child-uid');
+    await assertFails(
+      getDocs(query(collection(otherCtx.firestore(), 'wishlists'), where('childUid', '==', CHILD_UID)))
+    );
   });
 });

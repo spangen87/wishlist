@@ -1,11 +1,16 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
-import { getOrCreateWishlist, subscribeToItems, updateItemPosition } from '@/lib/firebase/wishlist';
-import type { WishItemDoc } from '@/types/firestore';
+import {
+  getOrCreateWishlist,
+  subscribeToChildWishlists,
+  subscribeToItems,
+  updateItemPosition,
+} from '@/lib/firebase/wishlist';
+import type { WishItemDoc, WishlistDoc } from '@/types/firestore';
 import { WishItemCard } from '@/components/wishlist/WishItemCard';
 import { AddItemForm } from '@/components/wishlist/AddItemForm';
 import { EmptyState } from '@/components/wishlist/EmptyState';
@@ -30,15 +35,27 @@ import {
   Heart,
 } from '@/components/galaxy';
 
-export default function WishlistPage() {
+// Name of one of the child's lists in the switcher. The first list usually has
+// no title (it was made together with the account), so it gets a default.
+function childListName(wl: WishlistDoc) {
+  return wl.title?.trim() || wl.occasion?.name?.trim() || 'Min önskelista';
+}
+
+export default function WishlistPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ list?: string }>;
+}) {
+  // ?list= picks which of the child's lists to open — settings links back here with it.
+  const { list: requestedListId } = use(searchParams);
   const router = useRouter();
   const { user, role, loading } = useAuth();
   const [items, setItems] = useState<WishItemDoc[]>([]);
-  const [wishlistId, setWishlistId] = useState<string | null>(null);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [lists, setLists] = useState<WishlistDoc[] | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(requestedListId ?? null);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeItem, setActiveItem] = useState<WishItemDoc | null>(null);
-  const wishlistIdRef = useRef<string | null>(null);
 
   const displayName = (() => {
     if (!user) return 'Min galax';
@@ -68,23 +85,73 @@ export default function WishlistPage() {
     }
   }, [loading, user, role, router]);
 
+  // The child's lists: the one made with the account (ID = their UID) first,
+  // then the ones their parents added, oldest first.
   useEffect(() => {
     if (loading || !user) return;
-    let unsubscribe: (() => void) | null = null;
-
-    getOrCreateWishlist(user.uid).then((id) => {
-      wishlistIdRef.current = id;
-      setWishlistId(id);
-      unsubscribe = subscribeToItems(id, (newItems) => {
-        setItems(newItems);
-        setDataLoading(false);
-      });
-    });
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    let creating = false;
+    const unsubscribe = subscribeToChildWishlists(
+      user.uid,
+      (found) => {
+        if (found.length === 0) {
+          // First login: no list yet. The snapshot fires again once it exists.
+          if (!creating) {
+            creating = true;
+            getOrCreateWishlist(user.uid).catch(() => setLists([]));
+          }
+          return;
+        }
+        const createdMs = (wl: WishlistDoc) => wl.createdAt?.toMillis?.() ?? Number.MAX_SAFE_INTEGER;
+        setLists(
+          [...found].sort((a, b) => {
+            if (a.id === user.uid) return -1;
+            if (b.id === user.uid) return 1;
+            return createdMs(a) - createdMs(b);
+          })
+        );
+      },
+      () => {
+        // The query was refused — fall back to the one list we know the ID of.
+        getOrCreateWishlist(user.uid)
+          .then((id) => setLists([{ id, childUid: user.uid } as WishlistDoc]))
+          .catch(() => setLists([]));
+      }
+    );
+    return unsubscribe;
   }, [loading, user]);
+
+  // The requested list if it still exists, otherwise the first one.
+  const wishlistId =
+    lists?.find((wl) => wl.id === selectedId)?.id ?? lists?.[0]?.id ?? null;
+
+  // Reset per-list state when switching so the previous list's wishes don't
+  // flash while the new subscription warms up.
+  const [prevWishlistId, setPrevWishlistId] = useState(wishlistId);
+  if (prevWishlistId !== wishlistId) {
+    setPrevWishlistId(wishlistId);
+    setItems([]);
+    setItemsLoading(true);
+    setShowAddForm(false);
+  }
+
+  useEffect(() => {
+    if (!wishlistId) return;
+    return subscribeToItems(
+      wishlistId,
+      (newItems) => {
+        setItems(newItems);
+        setItemsLoading(false);
+      },
+      () => setItemsLoading(false)
+    );
+  }, [wishlistId]);
+
+  function selectList(id: string) {
+    setSelectedId(id);
+    // Keep the choice in the URL so a reload or the way back from settings
+    // lands on the same list, without a round-trip through the router.
+    window.history.replaceState(null, '', `/wishlist?list=${encodeURIComponent(id)}`);
+  }
 
   function handleDragStart(event: { active: { id: string | number } }) {
     const found = items.find((i) => i.id === event.active.id);
@@ -135,6 +202,7 @@ export default function WishlistPage() {
     }
   }
 
+  const dataLoading = lists === null || (wishlistId !== null && itemsLoading);
   if (loading || dataLoading) return <LoadingSkeleton />;
   if (!user) return null;
 
@@ -146,6 +214,7 @@ export default function WishlistPage() {
   const totalFavorites = favoriteItems.length;
   const totalPhotos = items.filter((i) => !!i.photoData).length;
   const isEmpty = items.length === 0 && !showAddForm;
+  const showSwitcher = (lists?.length ?? 0) > 1;
 
   return (
     <NightShell twinkleCount={28} auroraColor={isEmpty ? '#B28BFF' : '#FF7AB8'}>
@@ -193,6 +262,33 @@ export default function WishlistPage() {
             </>
           }
         />
+        {showSwitcher && (
+          <nav aria-label="Mina önskelistor" className="mt-4 -mx-1 px-1 flex gap-2 overflow-x-auto">
+            {lists!.map((wl) => {
+              const active = wl.id === wishlistId;
+              return (
+                <button
+                  key={wl.id}
+                  type="button"
+                  onClick={() => selectList(wl.id)}
+                  aria-current={active ? 'page' : undefined}
+                  className="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold"
+                  style={
+                    active
+                      ? { background: 'linear-gradient(135deg, #FF7AB8, #B28BFF)', color: '#fff' }
+                      : {
+                          background: 'var(--color-card)',
+                          border: '1px solid var(--color-card-light)',
+                          color: 'var(--color-muted)',
+                        }
+                  }
+                >
+                  {childListName(wl)}
+                </button>
+              );
+            })}
+          </nav>
+        )}
       </div>
 
       <div className="flex-1 app-page-x-tight app-bottom-fab pt-2 mx-auto w-full max-w-2xl no-overscroll">

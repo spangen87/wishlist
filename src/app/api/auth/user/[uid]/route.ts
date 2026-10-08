@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { isAccountFreeList } from '@/lib/wishlist-kind';
+import { getChildLists } from '@/lib/firebase/child-lists';
 
 export async function DELETE(
   request: NextRequest,
@@ -34,23 +35,32 @@ export async function DELETE(
 
   if (role === 'child') {
     // Only a parent of this child may delete the child account.
-    // Primary source: wishlists/{targetUid}.parentUids (set during Phase 6 invite redemption).
+    // Primary source: parentUids on the child's lists — wishlists/{targetUid}
+    //   plus any further lists carrying the same childUid.
     // Fallback: users/{targetUid}.parentUids (populated by 07-02 migration script and kept
-    //   in sync by future parent invite flows). This handles the case where the wishlist
-    //   was already deleted before the account delete is requested.
-    const wishlistSnap = await adminDb.collection('wishlists').doc(targetUid).get();
+    //   in sync by future parent invite flows). This handles the case where every
+    //   list was already deleted before the account delete is requested.
+    const childLists = await getChildLists(targetUid);
     const parentUids: string[] =
-      wishlistSnap.exists
-        ? (wishlistSnap.data()!.parentUids ?? [])
+      childLists.length > 0
+        ? childLists.flatMap((d) => (d.data().parentUids ?? []) as string[])
         : (userData.parentUids ?? []);  // fallback to user doc after migration
     if (!parentUids.includes(decoded.uid)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Delete Firestore data first (Pitfall 2: Firestore before Auth)
-    // 1. Cascade-delete wishlist + items/* + purchaseStatus/* + activityLog/*
-    if (wishlistSnap.exists) {
-      await adminDb.recursiveDelete(adminDb.collection('wishlists').doc(targetUid));
+    // 1. Cascade-delete every list + items/* + purchaseStatus/* + activityLog/*,
+    //    and the invite tokens that point at them.
+    for (const listDoc of childLists) {
+      await adminDb.recursiveDelete(listDoc.ref);
+      const inviteSnap = await adminDb.collection('invites')
+        .where('wishlistId', '==', listDoc.id).get();
+      if (!inviteSnap.empty) {
+        const inviteBatch = adminDb.batch();
+        inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
+        await inviteBatch.commit();
+      }
     }
 
     // 2. Batch-delete users/{uid} and usernames/{username}
@@ -60,15 +70,6 @@ export async function DELETE(
       batch.delete(adminDb.collection('usernames').doc(username));
     }
     await batch.commit();
-
-    // 3. Clean up orphaned invite tokens for this wishlist
-    const inviteSnap = await adminDb.collection('invites')
-      .where('wishlistId', '==', targetUid).get();
-    if (!inviteSnap.empty) {
-      const inviteBatch = adminDb.batch();
-      inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
-      await inviteBatch.commit();
-    }
   } else {
     // parent or viewer: only the user themselves may delete their own account
     if (decoded.uid !== targetUid) {

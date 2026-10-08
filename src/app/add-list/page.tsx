@@ -1,15 +1,25 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '@/lib/firebase/client';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { LightShell, ArrowLeft } from '@/components/galaxy';
 import { OCCASION_SUGGESTIONS } from '@/lib/wishlist-kind';
 
-export default function AddListPage() {
+export default function AddListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ child?: string }>;
+}) {
+  // ?child=<uid>: one more list for an existing child account. Without it the
+  // list has no account behind it. The server checks that the caller is a
+  // parent of the child either way.
+  const { child: childUid } = use(searchParams);
   const router = useRouter();
   const { user, role, loading } = useAuth();
+  const [childName, setChildName] = useState('');
 
   const [title, setTitle] = useState('');
   const [occasionName, setOccasionName] = useState('');
@@ -22,6 +32,16 @@ export default function AddListPage() {
     if (!loading && !user) router.push('/login');
     if (!loading && user && role === 'child') router.push('/wishlist');
   }, [loading, user, role, router]);
+
+  useEffect(() => {
+    if (loading || !user || !childUid) return;
+    getDoc(doc(db, 'users', childUid))
+      .then((snap) => {
+        const data = snap.data();
+        setChildName(data?.displayName ?? data?.username ?? '');
+      })
+      .catch(() => { /* the heading just falls back to "barnet" */ });
+  }, [loading, user, childUid]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +71,7 @@ export default function AddListPage() {
         body: JSON.stringify({
           idToken,
           title: trimmedTitle,
-          hidePurchases,
+          ...(childUid ? { childUid } : { hidePurchases }),
           occasion: trimmedOccasion ? { name: trimmedOccasion, date: occasionDate } : null,
         }),
       });
@@ -82,7 +102,7 @@ export default function AddListPage() {
   return (
     <LightShell>
       <header
-        className="flex items-center gap-3 app-page app-top pb-4"
+        className="app-sticky flex items-center gap-3 app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link
@@ -93,7 +113,9 @@ export default function AddListPage() {
         >
           <ArrowLeft size={18} />
         </Link>
-        <h1 className="font-display font-bold text-[20px]">Skapa lista utan konto</h1>
+        <h1 className="font-display font-bold text-[20px] min-w-0 truncate">
+          {childUid ? `Ny lista för ${childName || 'barnet'}` : 'Skapa lista utan konto'}
+        </h1>
       </header>
 
       <div className="flex-1 app-page app-bottom pt-6">
@@ -102,8 +124,19 @@ export default function AddListPage() {
             className="mb-7 rounded-2xl px-4 py-3.5 text-[15px] leading-relaxed"
             style={{ background: 'var(--color-accent-soft)', color: 'var(--color-ink-light)' }}
           >
-            En önskelista som du sköter själv — ingen behöver logga in. Bra för
-            små barn, men funkar lika bra till dop, bröllop eller inflyttningsfest.
+            {childUid ? (
+              <>
+                En till önskelista för {childName || 'barnet'} — t.ex. inför jul
+                eller födelsedagen. {childName || 'Barnet'} ser den när hen loggar
+                in och kan önska i den precis som i sin första lista. Alla föräldrar
+                kommer åt den direkt, gäster bjuder du in med listans egen länk.
+              </>
+            ) : (
+              <>
+                En önskelista som du sköter själv — ingen behöver logga in. Bra för
+                små barn, men funkar lika bra till dop, bröllop eller inflyttningsfest.
+              </>
+            )}
           </p>
 
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
@@ -137,7 +170,9 @@ export default function AddListPage() {
                 className="mt-1.5 text-[13px] leading-snug"
                 style={{ color: 'var(--color-muted-light)' }}
               >
-                T.ex. &quot;Vilmas önskelista&quot; eller &quot;Vårt bröllop&quot;. Visas för alla du bjuder in.
+                {childUid
+                  ? 'T.ex. "Julklappar" eller "Födelsedag". Visas för alla du bjuder in.'
+                  : 'T.ex. "Vilmas önskelista" eller "Vårt bröllop". Visas för alla du bjuder in.'}
               </p>
             </div>
 
@@ -194,36 +229,40 @@ export default function AddListPage() {
               />
             </div>
 
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: '#fff', border: '1px solid var(--color-border-light)' }}
-            >
-              <label htmlFor="list-hide-purchases" className="flex items-start gap-3 cursor-pointer">
-                <input
-                  id="list-hide-purchases"
-                  type="checkbox"
-                  checked={hidePurchases}
-                  onChange={(e) => setHidePurchases(e.target.checked)}
-                  aria-describedby="list-hide-purchases-hint"
-                  className="mt-0.5 shrink-0"
-                  style={{ width: 20, height: 20, accentColor: 'var(--color-accent)' }}
-                />
-                <span>
-                  <span className="block text-[14px] font-bold" style={{ color: 'var(--color-ink-light)' }}>
-                    Jag vill bli överraskad
+            {/* Surprise mode only exists for lists without an account — a child
+                never sees purchases, and their parents need to. */}
+            {!childUid && (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: '#fff', border: '1px solid var(--color-border-light)' }}
+              >
+                <label htmlFor="list-hide-purchases" className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    id="list-hide-purchases"
+                    type="checkbox"
+                    checked={hidePurchases}
+                    onChange={(e) => setHidePurchases(e.target.checked)}
+                    aria-describedby="list-hide-purchases-hint"
+                    className="mt-0.5 shrink-0"
+                    style={{ width: 20, height: 20, accentColor: 'var(--color-accent)' }}
+                  />
+                  <span>
+                    <span className="block text-[14px] font-bold" style={{ color: 'var(--color-ink-light)' }}>
+                      Jag vill bli överraskad
+                    </span>
+                    <span
+                      id="list-hide-purchases-hint"
+                      className="mt-1 block text-[13px] leading-snug"
+                      style={{ color: 'var(--color-muted-light)' }}
+                    >
+                      Dölj vad som är köpt och reserverat för dig själv. Gästerna ser
+                      det fortfarande och slipper köpa dubbelt. Passar när listan är
+                      din egen — t.ex. till bröllop. Du kan ändra det här när som helst.
+                    </span>
                   </span>
-                  <span
-                    id="list-hide-purchases-hint"
-                    className="mt-1 block text-[13px] leading-snug"
-                    style={{ color: 'var(--color-muted-light)' }}
-                  >
-                    Dölj vad som är köpt och reserverat för dig själv. Gästerna ser
-                    det fortfarande och slipper köpa dubbelt. Passar när listan är
-                    din egen — t.ex. till bröllop. Du kan ändra det här när som helst.
-                  </span>
-                </span>
-              </label>
-            </div>
+                </label>
+              </div>
+            )}
 
             {error && (
               <p

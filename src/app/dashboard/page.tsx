@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
@@ -9,7 +10,7 @@ import { subscribeToViewerWishlists, subscribeToParentWishlists } from '@/lib/fi
 import { WishlistDashboardCard } from '@/components/viewer/WishlistDashboardCard';
 import { ParentWishlistDashboardCard } from '@/components/viewer/ParentWishlistDashboardCard';
 import { LightShell, Molly, Plus, LogOut } from '@/components/galaxy';
-import { isAccountFreeList, wishlistDisplayName } from '@/lib/wishlist-kind';
+import { isAccountFreeList, wishlistDisplayName, wishlistNameAmong } from '@/lib/wishlist-kind';
 import type { WishlistDoc } from '@/types/firestore';
 
 interface WishlistStats {
@@ -204,6 +205,14 @@ export default function DashboardPage() {
   const childWishlists = parentWishlists
     .filter((wl) => !isAccountFreeList(wl))
     .sort(byOccasionThenName);
+  // A child can have several lists — show them together under the child's name.
+  const childGroups = [...new Set(childWishlists.map((wl) => wl.childUid))]
+    .map((childUid) => ({
+      childUid,
+      name: childNames.get(childUid) ?? '…',
+      lists: childWishlists.filter((wl) => wl.childUid === childUid),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   const ownWishlists = parentWishlists
     .filter((wl) => isAccountFreeList(wl))
     .sort(byOccasionThenName);
@@ -251,7 +260,7 @@ export default function DashboardPage() {
                 className="text-[12px] font-bold flex items-center gap-1"
                 style={{ color: 'var(--color-accent)' }}
               >
-                <Plus size={12} /> Lägg till
+                <Plus size={12} /> Lägg till barn
               </button>
             )}
           </div>
@@ -270,15 +279,37 @@ export default function DashboardPage() {
               + Lägg till ditt första barn
             </button>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {childWishlists.map((wl) => (
-                <ParentWishlistDashboardCard
-                  key={wl.id}
-                  wishlist={wl}
-                  name={childNames.get(wl.childUid) ?? '…'}
-                  itemCount={stats.get(wl.id)?.itemCount ?? 0}
-                  purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
-                />
+            <div className="flex flex-col gap-5">
+              {childGroups.map((group) => (
+                <div key={group.childUid}>
+                  <div className="flex items-center justify-between gap-3 mb-2 px-1">
+                    <h3
+                      className="font-display font-bold text-[15px] truncate"
+                      style={{ color: 'var(--color-ink-light)' }}
+                    >
+                      {group.name}
+                    </h3>
+                    <Link
+                      href={`/add-list?child=${encodeURIComponent(group.childUid)}`}
+                      aria-label={`Ny önskelista för ${group.name}`}
+                      className="shrink-0 text-[12px] font-bold flex items-center gap-1 min-h-[32px]"
+                      style={{ color: 'var(--color-accent)' }}
+                    >
+                      <Plus size={12} /> Ny lista
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {group.lists.map((wl) => (
+                      <ParentWishlistDashboardCard
+                        key={wl.id}
+                        wishlist={wl}
+                        name={wl.title?.trim() || `${group.name}s önskelista`}
+                        itemCount={stats.get(wl.id)?.itemCount ?? 0}
+                        purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
               <button
                 type="button"
@@ -288,7 +319,7 @@ export default function DashboardPage() {
                   color: 'var(--color-accent)',
                   border: '1.5px dashed var(--color-border-light)',
                   background: '#fff',
-                  minHeight: 90,
+                  minHeight: 64,
                 }}
               >
                 + Lägg till barn
@@ -382,7 +413,7 @@ export default function DashboardPage() {
                 <WishlistDashboardCard
                   key={wl.id}
                   wishlist={wl}
-                  name={nameOf(wl)}
+                  name={wishlistNameAmong(wl, viewerWishlists, childNames.get(wl.childUid))}
                   itemCount={stats.get(wl.id)?.itemCount ?? 0}
                   purchasedCount={stats.get(wl.id)?.purchasedCount ?? 0}
                 />

@@ -10,6 +10,7 @@ const mockVerifyIdToken = jest.fn();
 const mockWishlistSet = jest.fn();
 const mockCount = jest.fn();
 const mockUserGet = jest.fn();
+const mockChildListsGet = jest.fn();
 
 let lastWishlistId = '';
 
@@ -22,7 +23,10 @@ const mockAdminDb = {
           lastWishlistId = docId;
           return { id: docId, set: mockWishlistSet };
         }),
-        where: jest.fn(() => ({ count: jest.fn(() => ({ get: mockCount })) })),
+        where: jest.fn(() => ({
+          count: jest.fn(() => ({ get: mockCount })),
+          get: mockChildListsGet,
+        })),
       };
     }
     // users
@@ -73,6 +77,7 @@ describe('POST /api/wishlist/create', () => {
     mockCount.mockResolvedValue({ data: () => ({ count: 0 }) });
     mockUserGet.mockResolvedValue({ data: () => ({ role: 'parent' }) });
     mockWishlistSet.mockResolvedValue(undefined);
+    mockChildListsGet.mockResolvedValue({ docs: [] });
   });
 
   it('creates a list with no child account and the caller as its only parent', async () => {
@@ -172,5 +177,58 @@ describe('POST /api/wishlist/create', () => {
     const res = await POST(makeRequest({ idToken: 'tok', title: 'Ännu en lista' }));
     expect(res.status).toBe(409);
     expect(mockWishlistSet).not.toHaveBeenCalled();
+  });
+
+  describe('for an existing child account', () => {
+    function childList(id: string, parentUids: string[]) {
+      return { id, data: () => ({ childUid: 'child1', parentUids }) };
+    }
+
+    beforeEach(() => {
+      mockUserGet.mockImplementation(async () => ({
+        exists: true,
+        data: () => ({ role: 'child' }),
+      }));
+      mockChildListsGet.mockResolvedValue({
+        docs: [childList('child1', ['u1', 'u2']), childList('list-old', ['u1', 'u3'])],
+      });
+    });
+
+    it("creates another list owned by the child, shared with all the child's parents", async () => {
+      const res = await POST(
+        makeRequest({ idToken: 'tok', title: ' Julklappar ', childUid: 'child1', hidePurchases: true })
+      );
+      expect(res.status).toBe(201);
+      expect(lastWishlistId).toBe('list-generated-id');
+      const written = mockWishlistSet.mock.calls[0][0];
+      expect(written).toMatchObject({ childUid: 'child1', viewerUids: [], title: 'Julklappar' });
+      expect([...written.parentUids].sort()).toEqual(['u1', 'u2', 'u3']);
+      // Not an account-free list: no owner, and surprise mode is not available.
+      expect(written.ownerUid).toBeUndefined();
+      expect(written.hidePurchases).toBeUndefined();
+    });
+
+    it('refuses someone who is not a parent of the child', async () => {
+      mockVerifyIdToken.mockResolvedValue({ uid: 'stranger', role: 'parent' });
+      const res = await POST(makeRequest({ idToken: 'tok', title: 'Jul', childUid: 'child1' }));
+      expect(res.status).toBe(403);
+      expect(mockWishlistSet).not.toHaveBeenCalled();
+    });
+
+    it('refuses a childUid that is not a child account', async () => {
+      mockUserGet.mockImplementation(async () => ({ exists: true, data: () => ({ role: 'parent' }) }));
+      const res = await POST(makeRequest({ idToken: 'tok', title: 'Jul', childUid: 'u2' }));
+      expect(res.status).toBe(404);
+      expect(mockWishlistSet).not.toHaveBeenCalled();
+    });
+
+    it('refuses to go past the per-child list cap', async () => {
+      mockChildListsGet.mockResolvedValue({
+        docs: Array.from({ length: 25 }, (_, i) => childList(`list-${i}`, ['u1'])),
+      });
+      const res = await POST(makeRequest({ idToken: 'tok', title: 'Jul', childUid: 'child1' }));
+      expect(res.status).toBe(409);
+      expect(mockWishlistSet).not.toHaveBeenCalled();
+    });
   });
 });

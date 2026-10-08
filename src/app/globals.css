@@ -132,6 +132,15 @@ input, select, textarea {
   padding-top: max(20px, env(safe-area-inset-top));
 }
 
+/* Page top bar that stays in place while the page scrolls, so the back
+   button is always within reach. Give it a background — content scrolls
+   underneath. Its app-top padding keeps it clear of the notch. */
+.app-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
 .app-bottom {
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }

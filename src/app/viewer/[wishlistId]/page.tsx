@@ -9,7 +9,7 @@ import { subscribeToPurchaseStatus, subscribeToParentWishlists } from '@/lib/fir
 import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
 import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { deleteWishItem } from '@/lib/firebase/wishlist';
-import { isAccountFreeList, wishlistDisplayName } from '@/lib/wishlist-kind';
+import { isAccountFreeList, wishlistNameAmong } from '@/lib/wishlist-kind';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -295,7 +295,7 @@ export default function ViewerWishlistPage({
     return (
       <LightShell>
         <header
-          className="flex items-center gap-3 app-page app-top pb-4"
+          className="app-sticky flex items-center gap-3 app-page app-top pb-4"
           style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
         >
           <Link
@@ -358,7 +358,7 @@ export default function ViewerWishlistPage({
   const canManageItems = isParent && accountFree;
   const showSwitcher = isParent && siblingLists.length > 1;
   const switcherName = (wl: WishlistDoc) =>
-    wishlistDisplayName(wl, childNames.get(wl.childUid));
+    wishlistNameAmong(wl, siblingLists, childNames.get(wl.childUid));
   const switcherLists = [...siblingLists].sort((a, b) =>
     switcherName(a).localeCompare(switcherName(b), 'sv')
   );
@@ -417,61 +417,62 @@ export default function ViewerWishlistPage({
 
   return (
     <LightShell>
-      {/* Top bar */}
-      <header
-        className="flex items-center justify-between gap-3 app-page app-top pb-3"
-        style={{ background: '#fff' }}
+      {/* Top bar + list switcher stay pinned so the way back is always in reach. */}
+      <div
+        className="app-sticky"
+        style={{ background: '#fff', boxShadow: '0 1px 0 var(--color-border-light)' }}
       >
-        <Link
-          href="/dashboard"
-          aria-label="Mina listor"
-          className="flex items-center gap-1.5 text-[13px] min-h-[40px]"
-          style={{ color: 'var(--color-muted-light)' }}
-        >
-          <ArrowLeft size={16} /> Mina listor
-        </Link>
-        {canSeePurchases && (
+        <header className="flex items-center justify-between gap-3 app-page app-top pb-3">
           <Link
-            href={`/viewer/${wishlistId}/activity`}
-            className="text-[13px] font-semibold"
-            style={{ color: 'var(--color-accent)' }}
+            href="/dashboard"
+            aria-label="Mina listor"
+            className="flex items-center gap-1.5 text-[13px] min-h-[40px]"
+            style={{ color: 'var(--color-muted-light)' }}
           >
-            Aktivitet →
+            <ArrowLeft size={16} /> Mina listor
           </Link>
-        )}
-      </header>
+          {canSeePurchases && (
+            <Link
+              href={`/viewer/${wishlistId}/activity`}
+              className="text-[13px] font-semibold"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              Aktivitet →
+            </Link>
+          )}
+        </header>
 
-      {/* Child switcher — jump straight between siblings' lists */}
-      {showSwitcher && (
-        <nav
-          aria-label="Byt önskelista"
-          className="app-page pb-3 flex gap-2 overflow-x-auto"
-          style={{ background: '#fff' }}
-        >
-          {switcherLists.map((wl) => {
-            const active = wl.id === wishlistId;
-            return (
-              <Link
-                key={wl.id}
-                href={`/viewer/${wl.id}`}
-                aria-current={active ? 'page' : undefined}
-                className="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold"
-                style={
-                  active
-                    ? { background: 'var(--color-accent)', color: '#fff' }
-                    : {
-                        background: 'var(--color-bg-light)',
-                        color: 'var(--color-muted-light)',
-                        border: '1px solid var(--color-border-light)',
-                      }
-                }
-              >
-                {switcherName(wl)}
-              </Link>
-            );
-          })}
-        </nav>
-      )}
+        {/* Child switcher — jump straight between siblings' lists */}
+        {showSwitcher && (
+          <nav
+            aria-label="Byt önskelista"
+            className="app-page pb-3 flex gap-2 overflow-x-auto"
+          >
+            {switcherLists.map((wl) => {
+              const active = wl.id === wishlistId;
+              return (
+                <Link
+                  key={wl.id}
+                  href={`/viewer/${wl.id}`}
+                  aria-current={active ? 'page' : undefined}
+                  className="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold"
+                  style={
+                    active
+                      ? { background: 'var(--color-accent)', color: '#fff' }
+                      : {
+                          background: 'var(--color-bg-light)',
+                          color: 'var(--color-muted-light)',
+                          border: '1px solid var(--color-border-light)',
+                        }
+                  }
+                >
+                  {switcherName(wl)}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+      </div>
 
       <div
         className="app-page pb-4"
