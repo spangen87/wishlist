@@ -26,6 +26,12 @@ function docMocks(key: string): DocMocks {
   return entry;
 }
 
+// Query results keyed by "collection:field=value" — a child's lists are found
+// with where('childUid', '==', …).
+type QueryDoc = { id: string; ref: DocMocks; data: () => Record<string, unknown> };
+const mockQueryResults = new Map<string, QueryDoc[]>();
+const mockBatchUpdate = jest.fn();
+
 const mockAdminDb = {
   collection: jest.fn((col: string) => ({
     doc: jest.fn((id: string) => {
@@ -35,7 +41,11 @@ const mockAdminDb = {
       if (!id) throw new Error('Document path must be a non-empty string');
       return docMocks(`${col}/${id}`);
     }),
+    where: jest.fn((field: string, _op: string, value: unknown) => ({
+      get: jest.fn(async () => ({ docs: mockQueryResults.get(`${col}:${field}=${value}`) ?? [] })),
+    })),
   })),
+  batch: jest.fn(() => ({ update: mockBatchUpdate, commit: jest.fn().mockResolvedValue(undefined) })),
 };
 
 jest.mock('@/lib/firebase/admin', () => ({
@@ -72,6 +82,7 @@ describe('POST /api/wishlist/remove-member', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     docRegistry.clear();
+    mockQueryResults.clear();
 
     docMocks('wishlists/wl-1').get.mockResolvedValue({
       exists: true,
@@ -130,6 +141,22 @@ describe('POST /api/wishlist/remove-member', () => {
       { parentUids: { op: 'arrayRemove', v: ['uid-parent-b'] } },
       { merge: true },
     );
+  });
+
+  it("removes a co-parent from the child's other lists too", async () => {
+    mockQueryResults.set('wishlists:childUid=uid-child', [
+      { id: 'wl-1', ref: docMocks('wishlists/wl-1'), data: () => ({ childUid: 'uid-child' }) },
+      { id: 'list-xmas', ref: docMocks('wishlists/list-xmas'), data: () => ({ childUid: 'uid-child' }) },
+    ]);
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-parent-a' });
+    const res = await POST(
+      makeRequest({ idToken: 't', wishlistId: 'wl-1', memberUid: 'uid-parent-b', memberType: 'parent' }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(docMocks('wishlists/list-xmas'), {
+      parentUids: { op: 'arrayRemove', v: ['uid-parent-b'] },
+    });
   });
 
   it('forbids the child from removing a parent', async () => {

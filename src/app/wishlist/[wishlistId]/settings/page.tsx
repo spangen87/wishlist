@@ -396,7 +396,7 @@ function CoParentInviteSection({
       !window.confirm(
         accountFree
           ? `Ta bort ${displayName} som medhanterare? Personen förlorar all tillgång till att hantera önskelistan.`
-          : `Ta bort ${displayName} som förälder? Personen förlorar all tillgång till att hantera önskelistan och barnkontot.`
+          : `Ta bort ${displayName} som förälder? Personen förlorar all tillgång till att hantera barnkontot och alla barnets önskelistor.`
       )
     )
       return;
@@ -463,7 +463,7 @@ function CoParentInviteSection({
       <p className="mt-1 text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
         {accountFree
           ? 'Ge någon annan — t.ex. din partner — full tillgång att hantera önskelistan. Länken slutar gälla när den har använts en gång.'
-          : 'Ge en annan förälder full tillgång att hantera önskelistan. Länken slutar gälla när den har använts en gång.'}
+          : 'Ge en annan förälder full tillgång att hantera barnet och alla barnets önskelistor. Länken slutar gälla när den har använts en gång.'}
       </p>
       {parents.length > 0 && (
         <ul className="mt-3 flex flex-col gap-1.5">
@@ -584,7 +584,7 @@ function DangerZone({
   async function handleDeleteChildAccount() {
     if (
       !window.confirm(
-        'Är du säker på att du vill ta bort barnkontot? Kontot, önskelistan och all data raderas permanent och kan inte återställas.'
+        'Är du säker på att du vill ta bort barnkontot? Kontot, alla barnets önskelistor och all data raderas permanent och kan inte återställas.'
       )
     )
       return;
@@ -669,6 +669,8 @@ export default function WishlistSettingsPage({
   const [initialOccasion, setInitialOccasion] = useState<{ name: string; date: string } | null>(null);
   const [childName, setChildName] = useState<string>('');
   const [accountFree, setAccountFree] = useState(false);
+  // Not always the list ID — a child's second list has a generated ID.
+  const [childUid, setChildUid] = useState<string>('');
   const [listTitle, setListTitle] = useState<string>('');
   const [initialHidePurchases, setInitialHidePurchases] = useState(false);
 
@@ -705,6 +707,7 @@ export default function WishlistSettingsPage({
 
         const listIsAccountFree = isAccountFreeList(data as { childUid?: string });
         setAccountFree(listIsAccountFree);
+        setChildUid(data.childUid ?? '');
 
         if (!listIsAccountFree) {
           try {
@@ -757,14 +760,27 @@ export default function WishlistSettingsPage({
 
   if (!user || !isOwner) return null;
 
+  // A child can have several lists, so name the list as well when it has a title.
+  const subtitle = accountFree
+    ? listTitle
+    : childName && listTitle
+    ? `${childName} · ${listTitle}`
+    : childName
+    ? `${childName}s önskelista`
+    : listTitle;
+
   return (
     <LightShell>
       <header
-        className="flex items-center gap-3 app-page app-top pb-4"
+        className="app-sticky flex items-center gap-3 app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link
-          href={accessType === 'parent' ? `/viewer/${wishlistId}` : '/wishlist'}
+          href={
+            accessType === 'parent'
+              ? `/viewer/${wishlistId}`
+              : `/wishlist?list=${encodeURIComponent(wishlistId)}`
+          }
           aria-label="Tillbaka"
           className="flex items-center justify-center min-h-[44px] min-w-[44px]"
           style={{ color: 'var(--color-muted-light)' }}
@@ -773,9 +789,9 @@ export default function WishlistSettingsPage({
         </Link>
         <div>
           <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
-          {(accountFree ? listTitle : childName) && (
+          {subtitle && (
             <p className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-              {accountFree ? listTitle : `${childName}s önskelista`}
+              {subtitle}
             </p>
           )}
         </div>
@@ -804,10 +820,10 @@ export default function WishlistSettingsPage({
               accountFree={accountFree}
             />
             {/* An account-free list has no child login — no password, no account to delete. */}
-            {!accountFree && <ResetChildPasswordSection childUid={wishlistId} />}
+            {!accountFree && <ResetChildPasswordSection childUid={childUid} />}
             <DangerZone
               wishlistId={wishlistId}
-              childUid={wishlistId}
+              childUid={childUid}
               accountFree={accountFree}
             />
           </>

@@ -31,10 +31,20 @@ function docMocks(key: string): DocMocks {
   return entry;
 }
 
+// Query results keyed by "collection:field=value" — a child's lists are found
+// with where('childUid', '==', …).
+type QueryDoc = { id: string; ref: DocMocks; data: () => Record<string, unknown> };
+const mockQueryResults = new Map<string, QueryDoc[]>();
+const mockBatchUpdate = jest.fn();
+
 const mockAdminDb = {
   collection: jest.fn((col: string) => ({
     doc: jest.fn((id: string) => docMocks(`${col}/${id}`)),
+    where: jest.fn((field: string, _op: string, value: unknown) => ({
+      get: jest.fn(async () => ({ docs: mockQueryResults.get(`${col}:${field}=${value}`) ?? [] })),
+    })),
   })),
+  batch: jest.fn(() => ({ update: mockBatchUpdate, commit: jest.fn().mockResolvedValue(undefined) })),
 };
 
 jest.mock('@/lib/firebase/admin', () => ({
@@ -82,6 +92,7 @@ describe('POST /api/invite/redeem', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     docRegistry.clear();
+    mockQueryResults.clear();
 
     mockSetCustomUserClaims.mockResolvedValue(undefined);
     mockVerifyIdToken.mockResolvedValue({ uid: 'uid-caller' });
@@ -157,6 +168,21 @@ describe('POST /api/invite/redeem', () => {
       }),
     );
     expect(docMocks('invites/tok-parent').update).toHaveBeenCalledWith({ active: false });
+  });
+
+  it("gives a new co-parent the child's other lists too", async () => {
+    mockVerifyIdToken.mockResolvedValue({ uid: 'uid-caller', role: 'viewer' });
+    const wl1 = { id: 'wl-1', ref: docMocks('wishlists/wl-1'), data: () => ({ childUid: 'uid-child-owner' }) };
+    const wl2 = { id: 'list-xmas', ref: docMocks('wishlists/list-xmas'), data: () => ({ childUid: 'uid-child-owner' }) };
+    mockQueryResults.set('wishlists:childUid=uid-child-owner', [wl1, wl2]);
+
+    const res = await POST(makeRequest({ idToken: 't', token: 'tok-parent' }));
+    expect(res.status).toBe(200);
+    expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(docMocks('wishlists/list-xmas'), {
+      parentUids: { op: 'arrayUnion', v: ['uid-caller'] },
+      viewerUids: { op: 'arrayRemove', v: ['uid-caller'] },
+    });
   });
 
   it('keeps the parent claim untouched for an existing parent joining another list', async () => {

@@ -2,6 +2,7 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { getChildLists } from '@/lib/firebase/child-lists';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -62,6 +63,16 @@ export async function POST(request: NextRequest) {
   // sync. An account-free list has no child profile to mirror into, and
   // doc('') throws — which used to 500 *after* the removal had committed.
   if (data.childUid) {
+    // Parent access is per child, so it goes from all of the child's lists —
+    // otherwise the removed parent would keep full control through a sibling.
+    const siblings = (await getChildLists(data.childUid)).filter((d) => d.id !== wishlistId);
+    if (siblings.length > 0) {
+      const siblingBatch = adminDb.batch();
+      siblings.forEach((d) =>
+        siblingBatch.update(d.ref, { parentUids: FieldValue.arrayRemove(memberUid) })
+      );
+      await siblingBatch.commit();
+    }
     await adminDb.collection('users').doc(data.childUid).set(
       { parentUids: FieldValue.arrayRemove(memberUid) },
       { merge: true }

@@ -1,11 +1,11 @@
 import {
-  doc, setDoc, getDoc, collection, query, orderBy,
+  doc, setDoc, getDoc, collection, query, orderBy, where,
   onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, deleteField
 } from 'firebase/firestore';
 import { generateKeyBetween } from 'fractional-indexing';
 import { db } from '@/lib/firebase/client';
 import { isValidPhotoDataUrl } from '@/lib/image';
-import type { WishItemDoc } from '@/types/firestore';
+import type { WishItemDoc, WishlistDoc } from '@/types/firestore';
 
 // Pattern 1 (RESEARCH.md): Use child UID as wishlist doc ID — deterministic and idempotent.
 // setDoc with { merge: true } ensures a second concurrent call is a no-op.
@@ -21,6 +21,19 @@ export async function getOrCreateWishlist(childUid: string): Promise<string> {
     }, { merge: true });
   }
   return childUid; // wishlist ID equals child UID
+}
+
+// All lists a child owns: wishlists/{childUid} plus any further lists their
+// parents created for them (generated `list-…` IDs, same childUid).
+export function subscribeToChildWishlists(
+  childUid: string,
+  onWishlists: (wishlists: WishlistDoc[]) => void,
+  onError?: () => void
+): () => void {
+  const q = query(collection(db, 'wishlists'), where('childUid', '==', childUid));
+  return onSnapshot(q, (snap) => {
+    onWishlists(snap.docs.map((d) => ({ id: d.id, ...d.data() as Omit<WishlistDoc, 'id'> })));
+  }, () => { onError?.(); });
 }
 
 // Pattern 2 (RESEARCH.md): Real-time items listener ordered by position string.

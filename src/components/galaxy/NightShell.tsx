@@ -53,7 +53,10 @@ interface LightShellProps {
 export function LightShell({ children, className }: LightShellProps) {
   return (
     <main
-      className={`relative min-h-[100dvh] flex flex-col overflow-x-hidden ${className ?? ''}`}
+      // overflow-x: clip, not hidden — hidden turns <main> into a scroll
+      // container, and the sticky page headers would stick to it instead of
+      // the viewport (i.e. never stick at all).
+      className={`relative min-h-[100dvh] flex flex-col overflow-x-clip ${className ?? ''}`}
       style={{ background: 'var(--color-bg-light)', color: 'var(--color-ink-light)' }}
     >
       {children}

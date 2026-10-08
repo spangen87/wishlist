@@ -114,7 +114,7 @@ export default function ActivityLogPage({
   return (
     <LightShell>
       <header
-        className="app-page app-top pb-4"
+        className="app-sticky app-page app-top pb-4"
         style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
       >
         <Link

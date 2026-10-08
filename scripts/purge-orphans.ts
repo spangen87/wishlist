@@ -38,17 +38,25 @@ async function syncParentUids(): Promise<number> {
   // authorize parent-initiated child account deletion when the wishlist is gone.
   console.log('Phase A: syncing parentUids from wishlists → user docs...\n');
   const wishlistsSnap = await adminDb.collection('wishlists').get();
+  // A child can have several lists (wishlists/{childUid} plus `list-…` ones
+  // carrying the same childUid), so mirror the union of their parents into the
+  // child's user doc. Account-free lists have no childUid and no user to mirror into.
+  const parentsByChild = new Map<string, Set<string>>();
+  for (const wDoc of wishlistsSnap.docs) {
+    const childUid: string = wDoc.data().childUid ?? '';
+    if (!childUid) continue;
+    const parentUids: string[] = wDoc.data().parentUids ?? [];
+    const set = parentsByChild.get(childUid) ?? new Set<string>();
+    parentUids.forEach((uid) => set.add(uid));
+    parentsByChild.set(childUid, set);
+  }
   let synced = 0;
   const syncBatch = adminDb.batch();
-  for (const wDoc of wishlistsSnap.docs) {
-    const parentUids: string[] = wDoc.data().parentUids ?? [];
-    // Only child lists are keyed by a user UID. A list with no account behind
-    // it has a generated ID, so mirroring it into users/ would invent a user.
-    const isAccountFreeList = !wDoc.data().childUid;
-    if (parentUids.length > 0 && !isAccountFreeList) {
+  for (const [childUid, parentUids] of parentsByChild) {
+    if (parentUids.size > 0) {
       syncBatch.set(
-        adminDb.collection('users').doc(wDoc.id),
-        { parentUids },
+        adminDb.collection('users').doc(childUid),
+        { parentUids: [...parentUids] },
         { merge: true }
       );
       synced++;
@@ -102,12 +110,11 @@ async function purgeOrphans(): Promise<void> {
 
     try {
       if (role === 'child') {
-        // 1. Cascade-delete wishlist + items/* + purchaseStatus/* + activityLog/*
-        const wishlistRef = adminDb.collection('wishlists').doc(uid);
-        const wishlistSnap = await wishlistRef.get();
-        if (wishlistSnap.exists) {
-          await adminDb.recursiveDelete(wishlistRef);
-          console.log(`  ✓ deleted wishlists/${uid} (recursive)`);
+        // 1. Cascade-delete every list of the child + items/* + purchaseStatus/* + activityLog/*
+        const childLists = await adminDb.collection('wishlists').where('childUid', '==', uid).get();
+        for (const listDoc of childLists.docs) {
+          await adminDb.recursiveDelete(listDoc.ref);
+          console.log(`  ✓ deleted wishlists/${listDoc.id} (recursive)`);
         }
 
         // 2. Batch-delete users/{uid} and usernames/{username}
@@ -119,14 +126,16 @@ async function purgeOrphans(): Promise<void> {
         await batch.commit();
         console.log(`  ✓ deleted users/${uid}${username ? ` + usernames/${username}` : ''}`);
 
-        // 3. Clean up orphaned invite tokens for this wishlist
-        const inviteSnap = await adminDb.collection('invites')
-          .where('wishlistId', '==', uid).get();
-        if (!inviteSnap.empty) {
-          const inviteBatch = adminDb.batch();
-          inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
-          await inviteBatch.commit();
-          console.log(`  ✓ deleted ${inviteSnap.size} invite token(s) for wishlist ${uid}`);
+        // 3. Clean up orphaned invite tokens for those lists
+        for (const listDoc of childLists.docs) {
+          const inviteSnap = await adminDb.collection('invites')
+            .where('wishlistId', '==', listDoc.id).get();
+          if (!inviteSnap.empty) {
+            const inviteBatch = adminDb.batch();
+            inviteSnap.docs.forEach((d) => inviteBatch.delete(d.ref));
+            await inviteBatch.commit();
+            console.log(`  ✓ deleted ${inviteSnap.size} invite token(s) for wishlist ${listDoc.id}`);
+          }
         }
       } else {
         // parent or viewer: remove UID from all wishlist arrays + delete user doc
