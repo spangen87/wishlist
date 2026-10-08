@@ -651,6 +651,32 @@ function DangerZone({
   );
 }
 
+function SettingsHeader({ backHref, subtitle }: { backHref: string; subtitle?: string }) {
+  return (
+    <header
+      className="app-sticky flex items-center gap-3 app-page app-top pb-4"
+      style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
+    >
+      <Link
+        href={backHref}
+        aria-label="Tillbaka"
+        className="flex items-center justify-center min-h-[44px] min-w-[44px]"
+        style={{ color: 'var(--color-muted-light)' }}
+      >
+        <ArrowLeft size={18} />
+      </Link>
+      <div>
+        <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
+        {subtitle && (
+          <p className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </header>
+  );
+}
+
 export default function WishlistSettingsPage({
   params,
 }: {
@@ -658,7 +684,7 @@ export default function WishlistSettingsPage({
 }) {
   const { wishlistId } = use(params);
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   const [viewers, setViewers] = useState<Array<{ uid: string; displayName: string }>>([]);
   const [parents, setParents] = useState<Array<{ uid: string; displayName: string }>>([]);
@@ -709,16 +735,6 @@ export default function WishlistSettingsPage({
         setAccountFree(listIsAccountFree);
         setChildUid(data.childUid ?? '');
 
-        if (!listIsAccountFree) {
-          try {
-            const childSnap = await getDoc(doc(db, 'users', data.childUid));
-            const childData = childSnap.data();
-            setChildName(childData?.displayName ?? childData?.username ?? '');
-          } catch {
-            // silent — header just omits the name
-          }
-        }
-
         const resolveNames = (uids: string[]) =>
           Promise.all(
             uids.map(async (uid) => {
@@ -732,10 +748,26 @@ export default function WishlistSettingsPage({
             })
           );
 
-        const [resolvedViewers, resolvedParents] = await Promise.all([
+        const resolveChildName = async () => {
+          if (listIsAccountFree) return '';
+          try {
+            const childSnap = await getDoc(doc(db, 'users', data.childUid));
+            const childData = childSnap.data();
+            return childData?.displayName ?? childData?.username ?? '';
+          } catch {
+            return ''; // silent — header just omits the name
+          }
+        };
+
+        // All in one round: on a phone each read can take seconds while the
+        // Firestore connection wakes up, so waiting on them one after another
+        // added up to a long blank "Laddar…".
+        const [resolvedChildName, resolvedViewers, resolvedParents] = await Promise.all([
+          resolveChildName(),
           resolveNames(data.viewerUids ?? []),
           resolveNames(parentUids),
         ]);
+        setChildName(resolvedChildName);
         setViewers(resolvedViewers);
         setParents(resolvedParents);
       } catch {
@@ -748,10 +780,17 @@ export default function WishlistSettingsPage({
     loadSettings();
   }, [loading, user, wishlistId, router]);
 
+  // Known before the list has loaded, so the way back is there from the start.
+  const backHref =
+    (accessType ?? (role === 'child' ? 'child' : 'parent')) === 'parent'
+      ? `/viewer/${wishlistId}`
+      : `/wishlist?list=${encodeURIComponent(wishlistId)}`;
+
   if (loading || dataLoading) {
     return (
       <LightShell>
-        <div className="flex min-h-[100dvh] items-center justify-center">
+        <SettingsHeader backHref={backHref} />
+        <div className="flex flex-1 items-center justify-center">
           <p style={{ color: 'var(--color-muted-light)' }}>Laddar…</p>
         </div>
       </LightShell>
@@ -771,31 +810,7 @@ export default function WishlistSettingsPage({
 
   return (
     <LightShell>
-      <header
-        className="app-sticky flex items-center gap-3 app-page app-top pb-4"
-        style={{ borderBottom: '1px solid var(--color-border-light)', background: '#fff' }}
-      >
-        <Link
-          href={
-            accessType === 'parent'
-              ? `/viewer/${wishlistId}`
-              : `/wishlist?list=${encodeURIComponent(wishlistId)}`
-          }
-          aria-label="Tillbaka"
-          className="flex items-center justify-center min-h-[44px] min-w-[44px]"
-          style={{ color: 'var(--color-muted-light)' }}
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <div>
-          <h1 className="font-display font-bold text-[20px]">Inställningar</h1>
-          {subtitle && (
-            <p className="text-[12px]" style={{ color: 'var(--color-muted-light)' }}>
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </header>
+      <SettingsHeader backHref={backHref} subtitle={subtitle} />
 
       <div className="app-page app-bottom pt-5 mx-auto w-full max-w-2xl flex flex-col gap-3">
         <OccasionSection
