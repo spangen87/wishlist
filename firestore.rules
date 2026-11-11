@@ -77,7 +77,9 @@ service cloud.firestore {
 
       // Items subcollection — child-readable AND child-writable (D-02)
       // Viewers can also read items (to show the wishlist to them)
-      // isFavorite is child-only: parent updates are allowed only when isFavorite is not affected (B-02)
+      // isFavorite is child-only for direct writes: parent updates are allowed only when isFavorite is
+      // not affected (B-02). Parents change favorites through /api/wishlist/set-favorite (Admin SDK),
+      // which enforces the cap on favorites per list.
       match /items/{itemId} {
         // photoData holds an own photo inline as a JPEG data URL (Spark plan
         // has no Cloud Storage). Cap size (must match MAX_PHOTO_DATA_CHARS in

@@ -34,7 +34,8 @@ export interface WishItemDoc {
   note?: string;           // Optional: child's personal note
   price?: number;          // Optional: approximate price
   position: string;        // Fractional index for drag-and-drop ordering (Phase 3)
-  isFavorite?: boolean;    // Optional: child-set favorite flag (B-02)
+  isFavorite?: boolean;    // Optional: favorite flag (B-02) — set by the child, or by a
+                           // parent through /api/wishlist/set-favorite
   createdAt: Timestamp;
 }
 

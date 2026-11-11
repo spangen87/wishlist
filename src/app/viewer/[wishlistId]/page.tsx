@@ -9,7 +9,7 @@ import { subscribeToPurchaseStatus, subscribeToParentWishlists } from '@/lib/fir
 import { ViewerWishItemCard } from '@/components/viewer/ViewerWishItemCard';
 import { ParentAddItemForm } from '@/components/viewer/ParentAddItemForm';
 import { deleteWishItem } from '@/lib/firebase/wishlist';
-import { isAccountFreeList, wishlistNameAmong } from '@/lib/wishlist-kind';
+import { wishlistNameAmong } from '@/lib/wishlist-kind';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
 import type { WishItemDoc, PurchaseStatusDoc, WishlistDoc } from '@/types/firestore';
 import Link from 'next/link';
@@ -262,6 +262,21 @@ export default function ViewerWishlistPage({
     }
   }
 
+  async function handleSetFavorite(itemId: string, isFavorite: boolean) {
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error('Något gick fel. Försök igen.');
+    const res = await fetch('/api/wishlist/set-favorite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, wishlistId, itemId, isFavorite }),
+    });
+    if (!res.ok) {
+      // Only the "list is full" refusal is worded for the reader.
+      const body = await res.json().catch(() => ({}));
+      throw new Error(res.status === 409 && body.error ? body.error : 'Något gick fel. Försök igen.');
+    }
+  }
+
   async function handleRename() {
     setIsRenaming(false);
     const trimmed = renameValue.trim();
@@ -350,12 +365,12 @@ export default function ViewerWishlistPage({
   const favoriteItems = items.filter((i) => i.isFavorite);
   const otherItems = items.filter((i) => !i.isFavorite);
 
-  const accountFree = isAccountFreeList({ childUid });
   const childName = childUid ? childNames.get(childUid) ?? '' : '';
   const fallbackTitle = childName ? `${childName}s önskelista` : 'Önskelista';
-  // Nobody else can edit an account-free list's wishes — there is no child
-  // login behind it — so its parents get the edit and delete controls.
-  const canManageItems = isParent && accountFree;
+  // Parents manage the wishes on every list they are responsible for: edit,
+  // delete and favorites. On an account-free list nobody else can; on a
+  // child's list the child can too, from their own view.
+  const canManageItems = isParent;
   const showSwitcher = isParent && siblingLists.length > 1;
   const switcherName = (wl: WishlistDoc) =>
     wishlistNameAmong(wl, siblingLists, childNames.get(wl.childUid));
@@ -387,6 +402,9 @@ export default function ViewerWishlistPage({
         hidePurchaseInfo={!canSeePurchases}
         onEdit={canManageItems ? () => setEditingItemId(item.id) : undefined}
         onDelete={canManageItems ? () => handleDeleteItem(item.id, item.title) : undefined}
+        onToggleFavorite={
+          canManageItems ? (favorite) => handleSetFavorite(item.id, favorite) : undefined
+        }
         onTogglePurchased={handleTogglePurchased}
         onUpdateNote={handleUpdateNote}
         onToggleReserved={handleToggleReserved}

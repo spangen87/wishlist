@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { updateWishItem, deleteWishItem } from '@/lib/firebase/wishlist';
 import { normalizeUrl, isSafeUrl } from '@/lib/url';
 import { fileToPhotoDataUrl, MAX_PHOTOS_PER_LIST } from '@/lib/image';
+import { MAX_FAVORITES_PER_LIST } from '@/lib/favorites';
 import type { WishItemDoc } from '@/types/firestore';
 import { Star, Heart, GripDots, Pencil, Trash, Camera } from '@/components/galaxy';
 
@@ -140,7 +141,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
   }
 
   async function handleToggleFavorite() {
-    if (!item.isFavorite && totalFavorites >= 5) {
+    if (!item.isFavorite && totalFavorites >= MAX_FAVORITES_PER_LIST) {
       setFavoriteError(true);
       setTimeout(() => setFavoriteError(false), 3000);
       return;
@@ -458,7 +459,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
             )}
             {favoriteError && (
               <p role="alert" className="text-[11px] mt-1" style={{ color: 'var(--color-pink)' }}>
-                Du kan ha max 5 favoriter.
+                Du kan ha max {MAX_FAVORITES_PER_LIST} favoriter.
               </p>
             )}
           </div>
