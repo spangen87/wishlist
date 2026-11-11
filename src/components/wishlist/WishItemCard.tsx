@@ -23,7 +23,11 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
   const accent = ACCENTS[index % ACCENTS.length];
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [imageLoadError, setImageLoadError] = useState(false);
+  // Remember WHICH image failed, not just that one did — otherwise a link
+  // that is corrected afterwards stays hidden until the page is reloaded.
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
+  const imageSrc = item.photoData ?? item.imageUrl;
+  const imageLoadError = !!imageSrc && failedImageSrc === imageSrc;
   const [favoriteError, setFavoriteError] = useState(false);
 
   const [editTitle, setEditTitle] = useState('');
@@ -379,16 +383,19 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
           </button>
 
           {/* Thumbnail — own photo wins over external image URL */}
-          {(item.photoData ?? item.imageUrl) && !imageLoadError ? (
+          {imageSrc && !imageLoadError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={item.photoData ?? item.imageUrl}
+              src={imageSrc}
               alt={item.title}
               width={56}
               height={56}
               className="shrink-0 object-cover"
               style={{ width: 56, height: 56, borderRadius: 12, background: 'rgba(255,255,255,0.05)' }}
-              onError={() => setImageLoadError(true)}
+              // Many shops refuse images requested from another site when a
+            // referrer is sent along (hotlink protection); without one they load.
+            referrerPolicy="no-referrer"
+            onError={() => setFailedImageSrc(imageSrc)}
             />
           ) : (
             <div
@@ -456,6 +463,12 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
               >
                 {item.productUrl}
               </a>
+            )}
+            {imageLoadError && !item.photoData && (
+              <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>
+                Bilden gick inte att visa. Bildlänken måste gå direkt till en bild –
+                prova en annan länk eller ta ett eget foto.
+              </p>
             )}
             {favoriteError && (
               <p role="alert" className="text-[11px] mt-1" style={{ color: 'var(--color-pink)' }}>

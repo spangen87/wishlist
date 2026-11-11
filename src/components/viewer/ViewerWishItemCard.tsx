@@ -48,7 +48,11 @@ export function ViewerWishItemCard({
 }: ViewerWishItemCardProps) {
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
-  const [imageLoadError, setImageLoadError] = useState(false);
+  // Remember WHICH image failed, not just that one did — otherwise a link
+  // that is corrected afterwards stays hidden until the page is reloaded.
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
+  const imageSrc = item.photoData ?? item.imageUrl;
+  const imageLoadError = !!imageSrc && failedImageSrc === imageSrc;
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
   const [favoriting, setFavoriting] = useState(false);
@@ -116,16 +120,19 @@ export function ViewerWishItemCard({
     >
       {/* Thumbnail — own photo wins over external image URL */}
       <div className="shrink-0">
-        {(item.photoData ?? item.imageUrl) && !imageLoadError ? (
+        {imageSrc && !imageLoadError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.photoData ?? item.imageUrl}
+            src={imageSrc}
             alt={item.title}
             width={56}
             height={56}
             className="object-cover"
             style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--color-bg-light)' }}
-            onError={() => setImageLoadError(true)}
+            // Many shops refuse images requested from another site when a
+            // referrer is sent along (hotlink protection); without one they load.
+            referrerPolicy="no-referrer"
+            onError={() => setFailedImageSrc(imageSrc)}
           />
         ) : (
           <div
