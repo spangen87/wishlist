@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
 import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
-import { Check, Pencil, Trash } from '@/components/galaxy';
+import { Check, Pencil, Trash, Heart } from '@/components/galaxy';
 import { isSafeUrl } from '@/lib/url';
 import type { WishItemDoc, PurchaseStatusDoc } from '@/types/firestore';
 
@@ -18,9 +18,11 @@ interface ViewerWishItemCardProps {
    * is left out rather than rendered empty.
    */
   hidePurchaseInfo?: boolean;
-  /** Provided when the reader may manage the list's wishes (account-free lists). */
+  /** Provided when the reader may manage the list's wishes (its parents). */
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Throws an Error whose message is shown to the reader when the change is refused. */
+  onToggleFavorite?: (favorite: boolean) => Promise<void>;
   onTogglePurchased: (itemId: string, itemTitle: string, purchased: boolean) => Promise<void>;
   onUpdateNote: (itemId: string, itemTitle: string, note: string) => Promise<void>;
   onToggleReserved: (itemId: string, itemTitle: string, reserve: boolean) => Promise<void>;
@@ -36,6 +38,7 @@ export function ViewerWishItemCard({
   hidePurchaseInfo = false,
   onEdit,
   onDelete,
+  onToggleFavorite,
   onTogglePurchased,
   onUpdateNote,
   onToggleReserved,
@@ -48,6 +51,8 @@ export function ViewerWishItemCard({
   const [imageLoadError, setImageLoadError] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
+  const [favoriting, setFavoriting] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
 
   const isPurchased = !hidePurchaseInfo && !!status?.purchasedBy;
   const isOwnPurchase = status?.purchasedBy === currentUid;
@@ -67,6 +72,21 @@ export function ViewerWishItemCard({
       setToggleError('Något gick fel. Försök igen.');
     } finally {
       setToggling(false);
+    }
+  }
+
+  async function handleToggleFavorite() {
+    if (!onToggleFavorite) return;
+    setFavoriting(true);
+    setFavoriteError(null);
+    try {
+      await onToggleFavorite(!item.isFavorite);
+    } catch (err: unknown) {
+      setFavoriteError(
+        err instanceof Error && err.message ? err.message : 'Något gick fel. Försök igen.'
+      );
+    } finally {
+      setFavoriting(false);
     }
   }
 
@@ -195,8 +215,31 @@ export function ViewerWishItemCard({
         )}
 
         {/* Manage — only on lists the reader is responsible for */}
-        {(onEdit || onDelete) && (
-          <div className="mt-2.5 flex items-center gap-4">
+        {(onEdit || onDelete || onToggleFavorite) && (
+          <div className="mt-2.5 flex items-center gap-4 flex-wrap">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={handleToggleFavorite}
+                disabled={favoriting}
+                aria-pressed={!!item.isFavorite}
+                aria-label={
+                  item.isFavorite
+                    ? `Ta bort ${item.title} från favoriter`
+                    : `Markera ${item.title} som favorit`
+                }
+                className="flex items-center gap-1.5 text-[12px] font-bold min-h-[36px] disabled:opacity-50"
+                style={{
+                  color: item.isFavorite ? 'var(--color-accent)' : 'var(--color-muted-light)',
+                }}
+              >
+                <Heart
+                  size={13}
+                  color={item.isFavorite ? 'var(--color-accent)' : 'var(--color-border-light)'}
+                />{' '}
+                {item.isFavorite ? 'Favorit' : 'Gör till favorit'}
+              </button>
+            )}
             {onEdit && (
               <button
                 type="button"
@@ -219,6 +262,11 @@ export function ViewerWishItemCard({
               </button>
             )}
           </div>
+        )}
+        {favoriteError && (
+          <p role="alert" className="text-[12px]" style={{ color: 'var(--color-destructive)' }}>
+            {favoriteError}
+          </p>
         )}
 
         {/* Reserve / actions */}
