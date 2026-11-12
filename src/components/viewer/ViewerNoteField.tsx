@@ -6,12 +6,15 @@ interface ViewerNoteFieldProps {
   itemTitle: string;
   currentNote: string;
   isSaving?: boolean;
+  /** Says who can read the note, so it isn't mistaken for the wish's own description. */
+  hint: string;
   onSave: (note: string) => Promise<void>;
 }
 
 export function ViewerNoteField({
   currentNote,
   onSave,
+  hint,
 }: ViewerNoteFieldProps) {
   const [expanded, setExpanded] = useState(false);
   const [value, setValue] = useState(currentNote);
@@ -47,7 +50,7 @@ export function ViewerNoteField({
         className="text-[12px] font-semibold flex items-center min-h-[36px]"
         style={{ color: 'var(--color-accent)' }}
       >
-        + Lämna en anteckning
+        + Anteckning till andra köpare
       </button>
     );
   }
@@ -87,9 +90,13 @@ export function ViewerNoteField({
         autoFocus
         onChange={(e) => setValue(e.target.value)}
         onBlur={handleBlur}
-        placeholder="Din anteckning…"
+        placeholder="T.ex. Vi köper den tillsammans med farmor"
+        aria-label="Anteckning till andra köpare"
         className="light-input italic resize-none"
       />
+      <span className="text-[11px]" style={{ color: 'var(--color-muted-light)' }}>
+        {hint}
+      </span>
       {saving && (
         <span className="text-[11px]" style={{ color: 'var(--color-muted-light)' }}>
           Sparar…

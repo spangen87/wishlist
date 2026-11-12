@@ -144,7 +144,7 @@ export function ParentAddItemForm({ wishlistId, item, onClose, onError }: Parent
           className="block mb-1.5 text-[10px] font-bold tracking-caps"
           style={{ color: 'var(--color-muted-light)' }}
         >
-          Anteckning
+          Beskrivning av önskemålet
         </label>
         <textarea
           id={fieldId('note')}
@@ -152,7 +152,15 @@ export function ParentAddItemForm({ wishlistId, item, onClose, onError }: Parent
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="light-input italic resize-none"
+          aria-describedby={fieldId('note-hint')}
         />
+        <p
+          id={fieldId('note-hint')}
+          className="mt-1 text-[11px]"
+          style={{ color: 'var(--color-muted-light)' }}
+        >
+          Syns för alla som ser listan, t.ex. storlek eller färg.
+        </p>
       </div>
       <div className="flex gap-3 flex-wrap mt-1">
         <button type="submit" disabled={saving} className="light-cta">
