@@ -108,7 +108,9 @@ async function createWishlist(
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // Add items with simple fractional positions
+  // Positions must be valid fractional-indexing keys (a0, a1, …) — the app
+  // derives the next key from the last one and rejects anything else, so
+  // plain "1", "2", "3" would make every added wish fail.
   const batch = adminDb.batch();
   items.forEach((item, i) => {
     const itemRef = wishlistRef.collection('items').doc();
@@ -117,7 +119,7 @@ async function createWishlist(
       title: item.title,
       ...(item.note ? { note: item.note } : {}),
       ...(item.price !== undefined ? { price: item.price } : {}),
-      position: String(i + 1),
+      position: `a${i}`,
       createdAt: FieldValue.serverTimestamp(),
     });
   });

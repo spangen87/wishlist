@@ -7,6 +7,8 @@ interface BrandHeaderProps {
   showMolly?: boolean;
   mollySize?: number;
   mollyMood?: 'happy' | 'sleepy' | 'excited' | 'thinking';
+  /** Replaces the default Molly — e.g. one that reacts to what happens on the page. */
+  mollySlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
   className?: string;
 }
@@ -24,13 +26,15 @@ export function BrandHeader({
   showMolly = true,
   mollySize = 44,
   mollyMood = 'happy',
+  mollySlot,
   rightSlot,
   className,
 }: BrandHeaderProps) {
   return (
     <header className={`flex items-center justify-between gap-3 min-w-0 ${className ?? ''}`}>
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        {showMolly && (
+        {showMolly && mollySlot}
+        {showMolly && !mollySlot && (
           <div className="relative shrink-0 anim-molly">
             <div
               aria-hidden="true"
