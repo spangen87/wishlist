@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { signOut } from 'firebase/auth';
@@ -15,6 +15,8 @@ import { WishItemCard } from '@/components/wishlist/WishItemCard';
 import { AddItemForm } from '@/components/wishlist/AddItemForm';
 import { EmptyState } from '@/components/wishlist/EmptyState';
 import { LoadingSkeleton } from '@/components/wishlist/LoadingSkeleton';
+import { MollyBuddy, milestoneMessage } from '@/components/wishlist/MollyBuddy';
+import type { MollyReaction, MollyReactionKind } from '@/components/wishlist/MollyBuddy';
 import {
   DndContext,
   PointerSensor,
@@ -56,6 +58,21 @@ export default function WishlistPage({
   const [itemsLoading, setItemsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeItem, setActiveItem] = useState<WishItemDoc | null>(null);
+  // Molly in the header reacts to what happens on the list.
+  const [mollyReaction, setMollyReaction] = useState<MollyReaction | null>(null);
+  const mollyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [editingIds, setEditingIds] = useState<ReadonlySet<string>>(new Set());
+
+  const reactMolly = useCallback((kind: MollyReactionKind, bubble?: string) => {
+    if (mollyTimerRef.current) clearTimeout(mollyTimerRef.current);
+    setMollyReaction({ kind, id: Date.now(), bubble });
+    // A milestone bubble needs time to be read; a plain reaction is over quickly.
+    mollyTimerRef.current = setTimeout(() => setMollyReaction(null), bubble ? 3500 : 1500);
+  }, []);
+
+  useEffect(() => () => {
+    if (mollyTimerRef.current) clearTimeout(mollyTimerRef.current);
+  }, []);
 
   const displayName = (() => {
     if (!user) return 'Min galax';
@@ -132,19 +149,49 @@ export default function WishlistPage({
     setItems([]);
     setItemsLoading(true);
     setShowAddForm(false);
+    setEditingIds(new Set());
+    setMollyReaction(null);
   }
 
   useEffect(() => {
     if (!wishlistId) return;
+    // What the list looked like in the previous snapshot. Comparing against it
+    // is what tells Molly a wish was added, removed or hearted — whoever did
+    // it, so she also cheers when a parent adds one. The first snapshot only
+    // sets the baseline: opening a list is not an event.
+    let previous: { wishes: number; favorites: number } | null = null;
     return subscribeToItems(
       wishlistId,
       (newItems) => {
+        const current = {
+          wishes: newItems.length,
+          favorites: newItems.filter((i) => i.isFavorite).length,
+        };
+        if (previous) {
+          if (current.wishes > previous.wishes) {
+            reactMolly('added', milestoneMessage(current.wishes));
+          } else if (current.wishes < previous.wishes) {
+            reactMolly('removed');
+          } else if (current.favorites > previous.favorites) {
+            reactMolly('favorite');
+          }
+        }
+        previous = current;
         setItems(newItems);
         setItemsLoading(false);
       },
       () => setItemsLoading(false)
     );
-  }, [wishlistId]);
+  }, [wishlistId, reactMolly]);
+
+  function handleEditingChange(itemId: string, editing: boolean) {
+    setEditingIds((prev) => {
+      const next = new Set(prev);
+      if (editing) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+  }
 
   function selectList(id: string) {
     setSelectedId(id);
@@ -215,6 +262,8 @@ export default function WishlistPage({
   const totalPhotos = items.filter((i) => !!i.photoData).length;
   const isEmpty = items.length === 0 && !showAddForm;
   const showSwitcher = (lists?.length ?? 0) > 1;
+  // A card removed while its edit form was open never reports closing it.
+  const mollyThinking = showAddForm || items.some((i) => editingIds.has(i.id));
 
   return (
     <NightShell twinkleCount={28} auroraColor={isEmpty ? '#B28BFF' : '#FF7AB8'}>
@@ -222,7 +271,10 @@ export default function WishlistPage({
         <BrandHeader
           eyebrow={displayName.toUpperCase()}
           title="Önskestjärnor"
-          mollyMood="happy"
+          // On an empty list the big sleeping Molly below is the only one —
+          // she "wakes up" into the header once the first wish is on its way.
+          showMolly={!isEmpty}
+          mollySlot={<MollyBuddy reaction={mollyReaction} thinking={mollyThinking} />}
           rightSlot={
             <>
               {wishlistId && (
@@ -323,6 +375,7 @@ export default function WishlistPage({
                           totalFavorites={totalFavorites}
                           totalPhotos={totalPhotos}
                           index={idx}
+                          onEditingChange={(editing) => handleEditingChange(item.id, editing)}
                         />
                       ))}
                     </ul>
@@ -352,6 +405,7 @@ export default function WishlistPage({
                           totalFavorites={totalFavorites}
                           totalPhotos={totalPhotos}
                           index={favoriteItems.length + idx}
+                          onEditingChange={(editing) => handleEditingChange(item.id, editing)}
                         />
                       ))}
                     </ul>

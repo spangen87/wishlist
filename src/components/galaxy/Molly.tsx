@@ -6,6 +6,7 @@ interface MollyProps {
   color?: string;
   eyeColor?: string;
   blushColor?: string;
+  blushOpacity?: number;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -16,6 +17,7 @@ export function Molly({
   color = '#fff',
   eyeColor = '#0F1330',
   blushColor = '#FF7AB8',
+  blushOpacity = 0.7,
   className,
   style,
 }: MollyProps) {
@@ -67,8 +69,8 @@ export function Molly({
         d="M22 58c-8 0-14-6-14-13s6-13 14-13c1-8 8-14 16-14 6 0 12 3 14 8 3-2 6-3 10-3 8 0 15 6 15 14 0 1 0 2-1 3 6 1 11 7 11 13 0 7-6 13-14 13H22z"
         fill={color}
       />
-      <ellipse cx="30" cy="62" rx="5" ry="3" fill={blushColor} opacity="0.7" />
-      <ellipse cx="70" cy="62" rx="5" ry="3" fill={blushColor} opacity="0.7" />
+      <ellipse cx="30" cy="62" rx="5" ry="3" fill={blushColor} opacity={blushOpacity} />
+      <ellipse cx="70" cy="62" rx="5" ry="3" fill={blushColor} opacity={blushOpacity} />
       {eyes[mood]}
       {mouth[mood]}
     </svg>

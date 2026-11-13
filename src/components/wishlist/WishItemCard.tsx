@@ -17,9 +17,11 @@ interface WishItemCardProps {
   totalFavorites: number;
   totalPhotos: number;
   index?: number;
+  /** Tells the page when this card's edit form opens or closes. */
+  onEditingChange?: (editing: boolean) => void;
 }
 
-export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, index = 0 }: WishItemCardProps) {
+export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, index = 0, onEditingChange }: WishItemCardProps) {
   const accent = ACCENTS[index % ACCENTS.length];
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -75,6 +77,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
     setEditSaveError(null);
     setShowDeleteConfirm(false);
     setEditMode(true);
+    onEditingChange?.(true);
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -93,6 +96,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
   }
 
   function handleCancelEdit() {
+    onEditingChange?.(false);
     setEditMode(false);
     setShowDeleteConfirm(false);
   }
@@ -127,6 +131,7 @@ export function WishItemCard({ item, wishlistId, totalFavorites, totalPhotos, in
         price: editPrice !== '' ? Number(editPrice) : undefined,
       };
       await updateWishItem(wishlistId, item.id, changes);
+      onEditingChange?.(false);
       setEditMode(false);
       setShowDeleteConfirm(false);
     } catch {
