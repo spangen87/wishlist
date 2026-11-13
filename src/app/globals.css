@@ -387,3 +387,28 @@ input, select, textarea {
   overflow: visible;
   clip: auto;
 }
+
+/* Viewer card: where a wish stands (reserved / bought) and the way back. */
+.viewer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted-light);
+  background: var(--color-bg-light);
+}
+.viewer-chip-on {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.viewer-undo {
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted-light);
+  text-decoration: underline;
+}
+.viewer-undo:disabled { opacity: 0.5; }

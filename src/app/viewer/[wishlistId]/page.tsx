@@ -378,6 +378,12 @@ export default function ViewerWishlistPage({
     switcherName(a).localeCompare(switcherName(b), 'sv')
   );
 
+  // The purchase side is hidden from the child by firestore.rules. An
+  // account-free list has no child, so there the promise can't be made.
+  const noteHint = childName
+    ? `Syns för andra köpare – inte för ${childName}.`
+    : 'Syns för andra köpare på listan.';
+
   function renderCard(item: WishItemDoc) {
     const statusDoc = statuses[item.id];
     if (editingItemId === item.id) {
@@ -418,6 +424,7 @@ export default function ViewerWishlistPage({
             ? displayNames.get(statusDoc.reservedBy) ?? '...'
             : undefined
         }
+        noteHint={noteHint}
         otherViewerNotes={
           statusDoc?.viewerNotes
             ? Object.entries(statusDoc.viewerNotes)
@@ -540,6 +547,7 @@ export default function ViewerWishlistPage({
         )}
 
         {canSeePurchases ? (
+          <>
           <div className="flex items-center gap-3 mt-3">
             <span className="text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
               {purchased} av {total} köpta
@@ -555,6 +563,14 @@ export default function ViewerWishlistPage({
               />
             </div>
           </div>
+          {total > 0 && (
+            <p className="mt-2 text-[12px] leading-snug" style={{ color: 'var(--color-muted-light)' }}>
+              Tryck på ”Jag tänker köpa” för att reservera ett önskemål, och markera
+              det som köpt när det är klart.
+              {childName && ` ${childName} ser varken det eller era anteckningar.`}
+            </p>
+          )}
+          </>
         ) : (
           <p className="mt-3 text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
             {total} {total === 1 ? 'önskemål' : 'önskemål'} · köpen är dolda för dig

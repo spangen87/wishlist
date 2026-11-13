@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { PurchasedBadge } from '@/components/viewer/PurchasedBadge';
 import { ViewerNoteField } from '@/components/viewer/ViewerNoteField';
 import { OtherViewerNotes } from '@/components/viewer/OtherViewerNotes';
 import { Check, Pencil, Trash, Heart } from '@/components/galaxy';
@@ -29,6 +28,8 @@ interface ViewerWishItemCardProps {
   purchaserName?: string;
   reserverName?: string;
   otherViewerNotes: Array<{ uid: string; displayName: string; note: string }>;
+  /** Who can read the buyers' notes — shown under the note field. */
+  noteHint: string;
 }
 
 export function ViewerWishItemCard({
@@ -45,6 +46,7 @@ export function ViewerWishItemCard({
   purchaserName,
   reserverName,
   otherViewerNotes,
+  noteHint,
 }: ViewerWishItemCardProps) {
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -158,47 +160,13 @@ export function ViewerWishItemCard({
           >
             {item.title}
           </h2>
-
-          {/* Checkbox toggle */}
-          {!hidePurchaseInfo && (
-          <button
-            type="button"
-            onClick={handleToggle}
-            disabled={toggling || isOthersPurchase}
-            aria-label={
-              isPurchased ? `Avmarkera ${item.title}` : `Markera ${item.title} som köpt`
-            }
-            className="shrink-0 flex items-center justify-center disabled:opacity-50"
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: isPurchased ? 'var(--color-accent)' : 'transparent',
-              border: `1.5px solid ${
-                isPurchased ? 'var(--color-accent)' : 'var(--color-border-light)'
-              }`,
-            }}
-          >
-            {isPurchased && <Check size={14} color="#fff" />}
-          </button>
-          )}
         </div>
 
-        <div className="mt-1 flex items-center gap-2 flex-wrap text-[12px]">
-          {item.price !== undefined && (
-            <span className="font-tabular" style={{ color: 'var(--color-muted-light)' }}>
-              ~{item.price} kr
-            </span>
-          )}
-          {isPurchased && purchaserName && (
-            <PurchasedBadge purchaserName={purchaserName} isCurrentUser={isOwnPurchase} />
-          )}
-          {isOtherReservation && reserverName && (
-            <span className="italic" style={{ color: 'var(--color-muted-light)' }}>
-              · Reserverad av {reserverName}
-            </span>
-          )}
-        </div>
+        {item.price !== undefined && (
+          <p className="mt-1 text-[12px] font-tabular" style={{ color: 'var(--color-muted-light)' }}>
+            ~{item.price} kr
+          </p>
+        )}
 
         {item.note && (
           <p
@@ -223,7 +191,7 @@ export function ViewerWishItemCard({
 
         {/* Manage — only on lists the reader is responsible for */}
         {(onEdit || onDelete || onToggleFavorite) && (
-          <div className="mt-2.5 flex items-center gap-4 flex-wrap">
+          <div className="mt-2 flex items-center gap-x-3.5 flex-wrap">
             {onToggleFavorite && (
               <button
                 type="button"
@@ -244,7 +212,7 @@ export function ViewerWishItemCard({
                   size={13}
                   color={item.isFavorite ? 'var(--color-accent)' : 'var(--color-border-light)'}
                 />{' '}
-                {item.isFavorite ? 'Favorit' : 'Gör till favorit'}
+                Favorit
               </button>
             )}
             {onEdit && (
@@ -279,35 +247,72 @@ export function ViewerWishItemCard({
         {/* Reserve / actions */}
         {!hidePurchaseInfo && (
         <div className="mt-3 flex flex-col gap-2">
-          {!isPurchased && (
-            <button
-              type="button"
-              onClick={handleToggleReserve}
-              disabled={reserving || isOtherReservation}
-              aria-label={
-                isOtherReservation
-                  ? `Reserverad av ${reserverName ?? '...'}`
-                  : isOwnReservation
-                  ? `Avboka reservation för ${item.title}`
-                  : `Reservera ${item.title}`
-              }
-              className="rounded-full text-[12px] font-bold px-3.5 py-2 self-start disabled:opacity-50"
-              style={{
-                background: isOwnReservation ? 'var(--color-accent-soft)' : 'transparent',
-                color: isOwnReservation ? 'var(--color-accent)' : 'var(--color-muted-light)',
-                border: `1px ${
-                  isOwnReservation ? 'solid' : 'dashed'
-                } var(--color-border-light)`,
-                cursor: isOtherReservation ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isOtherReservation
-                ? `Reserverad av ${reserverName ?? '...'}`
-                : isOwnReservation
-                ? '✓ Du tänker köpa'
-                : 'Jag tänker köpa'}
-            </button>
-          )}
+          {/* One step at a time: free → "Jag tänker köpa" → "Markera som köpt".
+              Each state shows only the action that leads on from it (and a way
+              back), so the two steps can't be mistaken for each other. */}
+          <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
+            {isPurchased ? (
+              isOwnPurchase ? (
+                <>
+                  <span className="viewer-chip viewer-chip-on">
+                    <Check size={11} color="var(--color-accent)" /> Köpt av dig
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggle}
+                    disabled={toggling}
+                    aria-label={`Ångra att ${item.title} är köpt`}
+                    className="viewer-undo"
+                  >
+                    Ångra
+                  </button>
+                </>
+              ) : (
+                <span className="viewer-chip">Köpt av {purchaserName ?? '…'}</span>
+              )
+            ) : isOwnReservation ? (
+              <>
+                <span className="viewer-chip viewer-chip-on">
+                  <Check size={11} color="var(--color-accent)" /> Du tänker köpa
+                </span>
+                <button
+                  type="button"
+                  onClick={handleToggleReserve}
+                  disabled={reserving || toggling}
+                  aria-label={`Ångra att du tänker köpa ${item.title}`}
+                  className="viewer-undo"
+                >
+                  Ångra
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  disabled={toggling || reserving}
+                  aria-label={`Markera ${item.title} som köpt`}
+                  className="rounded-full text-[12px] font-bold px-3.5 py-2 disabled:opacity-50"
+                  style={{ background: 'var(--color-accent)', color: '#fff' }}
+                >
+                  Markera som köpt
+                </button>
+              </>
+            ) : isOtherReservation ? (
+              <span className="viewer-chip">Reserverad av {reserverName ?? '…'}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleToggleReserve}
+                disabled={reserving}
+                aria-label={`Jag tänker köpa ${item.title}`}
+                className="rounded-full text-[12px] font-bold px-3.5 py-2 disabled:opacity-50"
+                style={{
+                  color: 'var(--color-accent)',
+                  border: '1px dashed var(--color-accent)',
+                }}
+              >
+                Jag tänker köpa
+              </button>
+            )}
+          </div>
 
           {reserveError && (
             <p role="alert" className="text-[12px]" style={{ color: 'var(--color-destructive)' }}>
@@ -325,6 +330,7 @@ export function ViewerWishItemCard({
               itemId={item.id}
               itemTitle={item.title}
               currentNote={status?.viewerNotes?.[currentUid] ?? ''}
+              hint={noteHint}
               onSave={(note) => onUpdateNote(item.id, item.title, note)}
             />
             <OtherViewerNotes notes={otherViewerNotes} />
